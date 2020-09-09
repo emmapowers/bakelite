@@ -1,0 +1,19 @@
+site_name: hwplatform
+site_description: hwplatform project description
+site_author: Emma Powers
+
+repo_url: https://github.com/emmapowers/hwplatform
+edit_uri: https://github.com/emmapowers/hwplatform/edit/master/docs
+
+theme: readthedocs
+
+markdown_extensions:
+  - codehilite
+
+nav:
+  - Home: index.md
+  - Advanced: advanced.md
+  - About:
+    - Release Notes: about/changelog.md
+    - Contributing: about/contributing.md
+    - License: about/license.md

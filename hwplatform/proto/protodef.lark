@@ -1,0 +1,41 @@
+%import common.NUMBER
+%import common.SIGNED_NUMBER
+%import common.ESCAPED_STRING
+%import common.CNAME
+%import common.WS_INLINE
+%import common.WS
+%import common.NEWLINE
+
+%ignore WS
+
+LITERAL: SIGNED_NUMBER | NUMBER | ESCAPED_STRING | CNAME
+comment: "#" /.+/
+
+LENGTH: "[" NUMBER* "]"
+TYPENAME: "int" | "uint" | "float" | "bits" | "bytes" | "string" | "wstring" | "unused"
+prim_sized: TYPENAME "[" [NUMBER] "]"
+prim_unsized: "flag"
+type: prim_sized | prim_unsized | (CNAME ["[" [NUMBER] "]"])
+
+name: CNAME
+value: LITERAL
+
+argument: CNAME ":" type
+argument_val: [CNAME "="] LITERAL
+
+annotation: "@" CNAME ["(" (argument_val ",")* [argument_val|LITERAL] ")"]
+
+enum_value: annotation* name "=" value [comment]
+enum: annotation* "enum" name ":" (prim_sized | prim_unsized) [comment] "{" (enum_value|comment)+ "}" [comment]
+
+struct_member: annotation* name ":" type ["=" value ] [comment]
+struct: annotation* "struct" name [comment] "{" (struct_member|comment)+ "}" [comment]
+
+command: annotation* name "(" (argument ",")* [argument] ")" ":" type | "ACK" [comment]
+event: annotation* name "(" (argument ",")* [argument] ")" [comment]
+proto_member: annotation* name "=" value [comment]
+proto_commands: annotation* "commands" [comment] "{" (command|comment)+ "}" [comment]
+proto_events: annotation* "events" [comment] "{" (event|comment)+ "}" [comment]
+proto: annotation* "protocol" [comment] "{" (proto_member|proto_commands|proto_events|comment)+ "}" [comment]
+
+start: (enum|struct|proto|comment)+

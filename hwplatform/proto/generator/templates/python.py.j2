@@ -1,0 +1,46 @@
+from dataclasses import dataclass
+from enum import Enum
+from hwplatform.proto.serialization import struct, enum
+
+{{""}}
+{{""}}
+
+% for comment in comments:
+#{{ comment }}
+% endfor
+
+{{""}}
+{{""}}
+
+% for enum in enums
+% if enum.comment
+# {{ enum.comment }}
+% endif
+@enum('{{to_desc(enum)}}')
+class {{ enum.name }}(Enum):
+  % for value in enum.values:
+  % if value.comment
+  #{{ value.comment }}
+  % endif
+  {{ value.name }} = {{ value.value }}
+  % endfor
+  {{""}}
+  {{""}}
+% endfor
+
+% for struct in structs
+% if struct.comment
+# {{ struct.comment }}
+% endif
+@struct('{{to_desc(struct)}}')
+@dataclass
+class {{ struct.name }}:
+  % for member in struct.members:
+  % if member.comment
+  #{{ member.comment }}
+  % endif
+  {{ member.name }}: {{map_type(member.type)}}{{ ' = ' + member.value if member.value }}
+  % endfor
+  {{""}}
+  {{""}}
+% endfor
