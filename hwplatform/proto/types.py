@@ -105,3 +105,20 @@ class Protocol:
   events: List[ProtoEvent]
   comment: Optional[str]
   annotations: List[ProtoAnnotation]
+
+def primitive_types():
+  return [
+    "flag",
+    "int",
+    "uint",
+    "float",
+    "bits",
+    "bytes",
+    "string",
+    "utf8string",
+    "unused",
+    "ACK"
+  ]
+
+def is_primitive(t: ProtoType) -> bool:
+  return t.name in primitive_types()

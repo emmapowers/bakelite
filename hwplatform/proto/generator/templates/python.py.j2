@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from hwplatform.proto.serialization import struct, enum
+from hwplatform.proto.runtime import Registry
 
 {{""}}
 {{""}}
@@ -10,13 +11,17 @@ from hwplatform.proto.serialization import struct, enum
 % endfor
 
 {{""}}
+
+registry = Registry()
+
+{{""}}
 {{""}}
 
 % for enum in enums
 % if enum.comment
 # {{ enum.comment }}
 % endif
-@enum('{{to_desc(enum)}}')
+@enum(registry, '{{to_desc(enum)}}')
 class {{ enum.name }}(Enum):
   % for value in enum.values:
   % if value.comment
@@ -32,7 +37,7 @@ class {{ enum.name }}(Enum):
 % if struct.comment
 # {{ struct.comment }}
 % endif
-@struct('{{to_desc(struct)}}')
+@struct(registry, '{{to_desc(struct)}}')
 @dataclass
 class {{ struct.name }}:
   % for member in struct.members:

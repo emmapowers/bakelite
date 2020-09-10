@@ -24,7 +24,7 @@ def _map_type(t: ProtoType) -> str:
     "bits": "bytes",
     "bytes": "bytes",
     "string": "str",
-    "wstring": "str",
+    "utf8string": "str",
     "unused": "None",
   }
 

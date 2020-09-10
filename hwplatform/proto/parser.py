@@ -28,21 +28,10 @@ class _ProtoCommands:
 class _ProtoEvents:
   events: List[ProtoEvent]
 
-_prim_types = [
-  "flag",
-  "int",
-  "uint",
-  "float",
-  "bits",
-  "bytes",
-  "string",
-  "wstring",
-  "unused",
-  "ACK"
-]
 
 def _filter(args, class_type):
   return [v for v in args if isinstance(v, class_type)]
+
 
 def _find_one(args, class_type):
   args = _filter(args, class_type)
@@ -178,7 +167,7 @@ class TreeTransformer(Transformer):
       value=str(args[0]))
   
   def type(self, args):
-    if str(args[0]) in _prim_types:
+    if str(args[0]) in primitive_types():
       if len(args) == 2:
         return self.prim_sized(args)
       else:
