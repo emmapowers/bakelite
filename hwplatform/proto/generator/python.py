@@ -3,6 +3,7 @@ from dataclasses import asdict
 
 from ..types import *
 from typing import List
+from ..util import to_camel_case
 
 env = Environment(
     loader=PackageLoader('hwplatform.proto.generator', 'templates'),
@@ -39,14 +40,39 @@ def _map_type(t: ProtoType) -> str:
 def _to_desc(dclass):
   return dclass.to_json()
 
+def _cmd_to_struct(command: ProtoCommand) -> ProtoStruct:
+  struct = ProtoStruct(
+    name="Cmd" + to_camel_case(command.name),
+    comment=command.comment,
+    annotations=command.annotations,
+    members=[
+      ProtoStructMember(
+        name=arg.name,
+        type=arg.type,
+        value=None,
+        comment=None,
+        annotations=[]
+      )
+      for arg in command.args
+    ]
+  )
+
+  return struct
+
 def render(enums: List[ProtoEnum],
            structs: List[ProtoStruct],
            proto: Protocol,
            comments: List[str]) -> str:
+
+  commands = []
+  events = []
+
   return template.render(
     enums=enums,
     structs=structs,
     proto=proto,
     comments=comments,
     map_type=_map_type,
-    to_desc=_to_desc)
+    to_desc=_to_desc,
+    to_camel_case=to_camel_case,
+    cmd_to_struct=_cmd_to_struct)

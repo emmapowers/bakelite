@@ -75,10 +75,8 @@ def _pack_primitive_type(value: Any, t: ProtoType) -> BitStream:
       raise RuntimeError(f'value is {len(value)}, but must be no longer than {t.size}')
     #Pad the value with zeros
     value = value + b'\0'*(t.size-len(value))
-    print(BitStream(bytes=value, length=t.size * 8).hex)
     return BitStream(bytes=value, length=t.size * 8)
 
-  print(f'{t.name} {format_str}')
   bits = bitstring.pack(format_str, value)
   
   return bits
@@ -133,7 +131,6 @@ def _unpack_primitive_type(stream: BitStream, t: ProtoType) -> BitStream:
     bits = stream.read(f"bits:{t.size*8}")
     return bits.tobytes().rstrip(b'\x00').decode('UTF-8')
 
-  print(f'{t.name} {format_str}')
   value = stream.read(format_str)
 
   return value

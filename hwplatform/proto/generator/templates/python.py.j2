@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 from hwplatform.proto.serialization import struct, enum
-from hwplatform.proto.runtime import Registry
+from hwplatform.proto.runtime import Registry, Computer as RComputer, Device as RDevice
+from hwplatform.proto.runtime import ACK
 
 {{""}}
 {{""}}
@@ -49,3 +50,52 @@ class {{ struct.name }}:
   {{""}}
   {{""}}
 % endfor
+
+{{""}}
+{{""}}
+
+%if proto
+
+% for command in proto.commands
+@struct(registry, '{{to_desc(cmd_to_struct(command))}}')
+@dataclass
+class Cmd{{ to_camel_case(command.name) }}:
+  % for arg in command.args:
+  {{ arg.name }}: {{map_type(arg.type)}}
+  % endfor
+  {{""}}
+  {{""}}
+% endfor
+
+class Computer(RComputer):
+  def __init__(**kwargs):
+    super(
+      % for option in proto.options:
+      {{option.name}}={{option.value}},
+      % endfor
+      registry=registry,
+      desc='{{to_desc(proto)}}',
+      **kwargs
+    )
+  {{""}}
+  % for command in proto.commands:
+  def {{command.name}}(self, *args) -> {{map_type(command.return_type)}}:
+    return self.send_command(Cmd{{to_camel_case(command.name)}}(*args))
+    {{""}}
+  % endfor
+
+{{""}}
+{{""}}
+
+class Device(RDevice):
+  def __init__(**kwargs):
+    super(
+      % for option in proto.options:
+      {{option.name}}={{option.value}},
+      % endfor
+      registry=registry,
+      desc='{{to_desc(proto)}}',
+      **kwargs
+    )
+
+%endif
