@@ -1,7 +1,7 @@
 # Project settings
-PROJECT := hwplatform
-PACKAGE := hwplatform
-REPOSITORY := emmapowers/hwplatform
+PROJECT := bakelite
+PACKAGE := bakelite
+REPOSITORY := emmapowers/bakelite
 
 # Project paths
 PACKAGES := $(PACKAGE) tests

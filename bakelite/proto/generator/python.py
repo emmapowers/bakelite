@@ -6,7 +6,7 @@ from typing import List
 from ..util import to_camel_case
 
 env = Environment(
-    loader=PackageLoader('hwplatform.proto.generator', 'templates'),
+    loader=PackageLoader('bakelite.proto.generator', 'templates'),
     trim_blocks=True,
     lstrip_blocks=True,
     keep_trailing_newline=True,

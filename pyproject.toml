@@ -1,8 +1,8 @@
 [tool.poetry]
 
-name = "hwplatform"
+name = "bakelite"
 version = "0.0"
-description = "hwplatform project description"
+description = "bakelite project description"
 
 license = "MIT"
 
@@ -10,9 +10,9 @@ authors = ["Emma Powers <emmapowers@gmail.com>"]
 
 readme = "README.md"
 
-homepage = "https://pypi.org/project/hwplatform"
-documentation = "https://hwplatform.readthedocs.io"
-repository = "https://github.com/emmapowers/hwplatform"
+homepage = "https://pypi.org/project/bakelite"
+documentation = "https://bakelite.readthedocs.io"
+repository = "https://github.com/emmapowers/bakelite"
 
 keywords = [
 ]
@@ -71,7 +71,7 @@ ipython = "^7.12.0"
 
 [tool.poetry.scripts]
 
-hwplatform = "hwplatform.cli:main"
+bakelite = "bakelite.cli:main"
 
 [tool.black]
 

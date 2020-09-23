@@ -1,7 +1,7 @@
 """Tests for the frame class, CRC, and data encoding/decoding"""
 # pylint: disable=redefined-outer-name,unused-variable,expression-not-assigned,singleton-comparison
 
-from hwplatform.proto.serialization import struct, SerializationError
+from bakelite.proto.serialization import struct, SerializationError
 from pytest import raises
 from dataclasses import dataclass
 

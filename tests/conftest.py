@@ -2,4 +2,4 @@
 
 # pylint: disable=unused-import
 
-from hwplatform.tests.conftest import pytest_configure
+from bakelite.tests.conftest import pytest_configure

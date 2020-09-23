@@ -1,9 +1,9 @@
-site_name: hwplatform
-site_description: hwplatform project description
+site_name: bakelite
+site_description: bakelite project description
 site_author: Emma Powers
 
-repo_url: https://github.com/emmapowers/hwplatform
-edit_uri: https://github.com/emmapowers/hwplatform/edit/master/docs
+repo_url: https://github.com/emmapowers/bakelite
+edit_uri: https://github.com/emmapowers/bakelite/edit/master/docs
 
 theme: readthedocs
 

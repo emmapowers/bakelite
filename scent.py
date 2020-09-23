@@ -12,7 +12,7 @@ else:
     notify = Notifier.notify
 
 
-watch_paths = ["hwplatform", "tests"]
+watch_paths = ["bakelite", "tests"]
 
 
 class Options:

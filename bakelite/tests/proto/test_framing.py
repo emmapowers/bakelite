@@ -2,7 +2,7 @@
 # pylint: disable=redefined-outer-name,unused-variable,expression-not-assigned,singleton-comparison
 
 import crcmod
-from hwplatform.proto import framing
+from bakelite.proto import framing
 from pytest import raises
 
 def describe_encoder():
