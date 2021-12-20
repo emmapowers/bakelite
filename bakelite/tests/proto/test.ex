@@ -8,9 +8,7 @@
 # bytes[bytes]        Some number of bytes.
 # bytes[]             series of bytes, length is variable
 # string[bytes]       fixed length string, may be ascii or utf8. Unused characters are indicated as null
-# string[]            variable length string
-# wstring[characters] fixed length unicode (utf-16) string
-# wstring[]           variable length unicode (utf-16) string
+# string[]            variable length string, null terminated
 # unused[bits]        indicates data that is not used for any purpose, or reserved
 #
 # ACK                 special type used to indicate a command should only expect a surccess response
@@ -43,9 +41,86 @@ struct PinConfig {
   interrupt: InteruptMode
 }
 
+##
+## Messages
+##
+
+# GPIO
+struct WritePortConfig {
+  portNumber: uint[3]
+  config: PortConfiguration
+}
+
+struct ReadPortConfig {
+  portNumber: uint[3]
+
+}
+
+struct WritePort {
+  portNumber: uint[3]
+  output: bits[8]
+}
+
+struct ReadPort {
+  portNumber: uint[3]
+}
+
+# SPI
+struct ConfigureSPI {
+  portNumber: uint[2]
+  bitRate: uint[16]
+}
+
+struct SpiWriteData { 
+  portNumber: uint[2]
+  bitRate: uint[16]
+}
+
+struct SpiReadData {
+  portNumber: uint[2]
+  data: bytes[]
+}
+
+# ADC
+struct StartADC {
+  channel: uint[4]
+  rate: uint[8]
+  chunkSize: uint[8]
+}
+
+struct StopADC {
+  channel: uint[4]
+}
+
+##
+## Responses
+##
+
+struct Ack {
+  code: uint[8]
+}
+
 struct PortConfiguration {
   pinConfig: PinCOnfig[8]
 }
+
+struct SpiData {
+  data: bytes[]
+}
+
+struct AdcData {
+  data: bytes[]
+}
+
+struct InterruptNotify {
+  port: int[2]
+  pin: int[3]
+  pinState: flag
+}
+
+##
+## Protocl Defenition
+##
 
 protocol {
   maxLength = 256
@@ -53,24 +128,27 @@ protocol {
   minVersion = 2
   framing = COBS
   crc = True
-  commands {
-    # GPIO
-    writePortConfig(portNumber: uint[3], config: PortConfiguration): ACK
-    readPortConfig(portNumber: uint[3]): PortConfiguration
-    writePort(output: bits[8]): ACK
-    readPort(output): bits[8]
 
-    # SPI
-    configureSPI(portNumber: uint[2], bitRate: uint[16]): ACK
-    writeData(portNumber: uint[2], bitRate: uint[16]): ACK
-    readData(portNumber: uint[2], data: bytes[]): bytes[]
-
-    # ADC
-    startADC(channel: uint[4], rate: uint[8], chunkSize: uint: [8]): ACK
-    stopADC(channel: uint[4]): ACK
-  }
-  events {
-    adcData[data: bytes[]]
-    interupt(port: int[2], pin: int[3], pinState: flag)
+  # Option list of messages that can be sent or received
+  # Bakelite will automatically encode/decode the messages based on the ID
+  # Message IDs need to be stable over time, so they have a statically assigned ID
+  messageIds {
+    # Commands
+    WritePortConfig = 1
+    ReadPortConfig = 2
+    WritePort = 3
+    ReadPort = 4
+    ConfigureSPI = 5
+    SpiWriteData = 6
+    SpiReadData = 7
+    StartADC = 8
+    StopADC = 9
+    
+    # Responses
+    Ack = 10
+    PortConfiguration = 11
+    SpiData = 12
+    AdcData = 13
+    InterruptNotify = 14
   }
 }

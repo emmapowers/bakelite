@@ -24,53 +24,24 @@ enum Speed: uint[8] {
   Fast = 255
 }
 
-struct EnumStruct {
-  direction: Direction
+struct Move {
   speed: Speed
-}
-
-struct TestStruct {
-  int1: int[4]
-  int2: int[32]
-  uint1: uint[5]
-  uint2: uint[16]
-  float1: float[32]
-  f1: flag
-  f2: flag
-  f3: flag
-  b1: bits[5]
-  b2: bytes[4]
-  s1: string[5]
+  direction: Direction
 }
 
 struct Ack {
   code: uint[8]
 }
 
-struct SubA {
-  flag: flag
-  flag2: flag
-}
+protocol {
+  maxLength = 256
+  version =  5
+  minVersion = 2
+  framing = COBS
+  crc = True
 
-struct SubB {
-  num: uint[8]
-}
-
-struct NestedStruct {
-  a: SubA
-  b: SubB
-  num: int[4]
-}
-
-struct SubC {
-  a: SubA
-}
-
-struct DeeplyNestedStruct {
-  c: SubC
-}
-
-struct ArrayStruct {
-  a[3]: Direction
-  b[2]: Ack
+  messageIds {
+    Move = 1
+    Ack = 2
+  } 
 }

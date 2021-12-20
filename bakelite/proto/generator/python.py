@@ -16,7 +16,7 @@ env = Environment(
 
 template = env.get_template('python.py.j2')
 
-def _map_type(t: ProtoType) -> str:
+def _map_type(member: ProtoStructMember) -> str:
   prim_types = {
     "flag": "bool",
     "int": "int",
@@ -25,47 +25,24 @@ def _map_type(t: ProtoType) -> str:
     "bits": "bytes",
     "bytes": "bytes",
     "string": "str",
-    "utf8string": "str",
     "unused": "None",
   }
 
-  if t.name in prim_types:
-    return prim_types[t.name]
+  if member.type.name in prim_types:
+    return prim_types[member.type.name]
   
-  if t.array:
-    return f"List[{t.name}]"
+  if member.arraySize is not None:
+    return f"List[{member.type.name}]"
   else:
-    return t.name
+    return member.type.name
 
 def _to_desc(dclass):
   return dclass.to_json()
-
-def _cmd_to_struct(command: ProtoCommand) -> ProtoStruct:
-  struct = ProtoStruct(
-    name="Cmd" + to_camel_case(command.name),
-    comment=command.comment,
-    annotations=command.annotations,
-    members=[
-      ProtoStructMember(
-        name=arg.name,
-        type=arg.type,
-        value=None,
-        comment=None,
-        annotations=[]
-      )
-      for arg in command.args
-    ]
-  )
-
-  return struct
 
 def render(enums: List[ProtoEnum],
            structs: List[ProtoStruct],
            proto: Protocol,
            comments: List[str]) -> str:
-
-  commands = []
-  events = []
 
   return template.render(
     enums=enums,
@@ -74,5 +51,4 @@ def render(enums: List[ProtoEnum],
     comments=comments,
     map_type=_map_type,
     to_desc=_to_desc,
-    to_camel_case=to_camel_case,
-    cmd_to_struct=_cmd_to_struct)
+    to_camel_case=to_camel_case)

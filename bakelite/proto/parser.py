@@ -9,6 +9,10 @@ from .types import *
 _g_parser = None
 
 @dataclass
+class _Array:
+  value: int
+
+@dataclass
 class _Comment:
   value: str
 
@@ -21,12 +25,12 @@ class _Value:
   value: str
 
 @dataclass
-class _ProtoCommands:
-  commands: List[ProtoCommand]
+class _Number:
+  value: int
 
 @dataclass
-class _ProtoEvents:
-  events: List[ProtoEvent]
+class _ProtoMessageIds:
+  ids: List[ProtoMessageId]
 
 
 def _filter(args, class_type):
@@ -49,10 +53,9 @@ def _find_many(args, class_type):
   return _filter(args, class_type)
 
 class TreeTransformer(Transformer):
-  def argument(self, args):
-    return ProtoArg(
-      name=str(args[0]),
-      type=args[1])
+  def array(self, args):
+    return _Array(
+      value=int(args[0]))
 
   def argument_val(self, args):
     if len(args) == 1:
@@ -70,14 +73,6 @@ class TreeTransformer(Transformer):
     return ProtoAnnotation(
       name=str(args[0]),
       arguments=_find_many(args, ProtoAnnotationArg))
-
-  def command(self, args):
-    return ProtoCommand(
-      return_type=_find_one(args, ProtoType),
-      name=_find_one(args, _Name),
-      args=_find_many(args, ProtoArg),
-      comment=_find_one(args, _Comment),
-      annotations=_find_many(args, ProtoAnnotation))
 
   def comment(self, args):
     return _Comment(
@@ -98,47 +93,43 @@ class TreeTransformer(Transformer):
       comment=_find_one(args, _Comment),
       annotations=_find_many(args, ProtoAnnotation))
 
-  def event(self, args):
-    return ProtoEvent(
-      name=_find_one(args, _Name),
-      args=_find_many(args, ProtoArg),
-      comment=_find_one(args, _Comment),
-      annotations=_find_many(args, ProtoAnnotation))
-
   def name(self, args):
     return _Name(
       value=str(args[0]))
 
+  def number(self, args):
+    return _Number(
+      value=int(args[0]))
+
   def prim_sized(self, args):
     return ProtoType(
       name=str(args[0]),
-      size=int(args[1]),
-      array=False)
+      size=int(args[1]))
   
   def prim_unsized(self, args):
     return ProtoType(
       name=str(args[0]),
-      size=0,
-      array=False)
+      size=0)
 
   def proto(self, args):
-    commands = _find_one(args, _ProtoCommands)
-    events = _find_one(args, _ProtoEvents)
+    ids = _find_one(args, _ProtoMessageIds)
 
     return Protocol(
       options=_find_many(args, ProtoOption),
-      commands= commands.commands if commands else [],
-      events= events.events if events else [],
+      message_ids=ids.ids if ids else [],
       comment=_find_one(args, _Comment),
       annotations=_find_many(args, ProtoAnnotation))
 
-  def proto_commands(self, args):
-    return _ProtoCommands(
-      commands=_find_many(args, ProtoCommand))
+  def proto_message_id(self, args):
+    return ProtoMessageId(
+      name=_find_one(args, _Name),
+      number=_find_one(args, _Number),
+      comment=_find_one(args, _Comment),
+      annotations=_find_many(args, ProtoAnnotation))
 
-  def proto_events(self, args):
-    return _ProtoEvents(
-      events=_find_many(args, ProtoEvent))
+  def proto_message_ids(self, args):
+    return _ProtoMessageIds(
+      ids=_find_many(args, ProtoMessageId))
 
   def proto_member(self, args):
     return ProtoOption(
@@ -160,29 +151,20 @@ class TreeTransformer(Transformer):
       type=_find_one(args, ProtoType),
       value=_find_one(args, _Value),
       comment=_find_one(args, _Comment),
-      annotations=_find_many(args, ProtoAnnotation))
+      annotations=_find_many(args, ProtoAnnotation),
+      arraySize=_find_one(args, _Array))
 
   def value(self, args):
     return _Value(
       value=str(args[0]))
   
-  def type(self, args):
-    if str(args[0]) in primitive_types():
-      if len(args) == 2:
-        return self.prim_sized(args)
-      else:
-        return self.prim_unsized(args)
-
-    if len(args) == 1:
-      return ProtoType(
-        name=str(args[0]),
-        size=None,
-        array=False)
+  def type(self, args):  
+    if isinstance(args[0], ProtoType):
+      return args[0]      
     else:
       return ProtoType(
         name=str(args[0]),
-        size=int(args[1]),
-        array=True)
+        size=None)
 
 def parse(text: str):
   global _g_parser
@@ -199,8 +181,8 @@ def parse(text: str):
   items = list(tree.iter_subtrees_topdown())[0].children
 
   enums = _find_many(items, ProtoEnum)
-  structs = _find_many(items, ProtoStruct)
+  messages = _find_many(items, ProtoStruct)
   protocol = _find_one(items, Protocol)
   comments = [comment.value for comment in _find_many(items, _Comment)]
 
-  return (enums, structs, protocol, comments)
+  return (enums, messages, protocol, comments)

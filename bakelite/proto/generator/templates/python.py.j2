@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from bakelite.proto.serialization import struct, enum
-from bakelite.proto.runtime import Registry, Computer as RComputer, Device as RDevice
-from bakelite.proto.runtime import ACK
+from bakelite.proto.runtime import Registry, ProtocolBase
 
 {{""}}
 {{""}}
@@ -22,7 +21,7 @@ registry = Registry()
 % if enum.comment
 # {{ enum.comment }}
 % endif
-@enum(registry, '{{to_desc(enum)}}')
+@enum(registry, r'''{{to_desc(enum)}}''')
 class {{ enum.name }}(Enum):
   % for value in enum.values:
   % if value.comment
@@ -38,14 +37,14 @@ class {{ enum.name }}(Enum):
 % if struct.comment
 # {{ struct.comment }}
 % endif
-@struct(registry, '{{to_desc(struct)}}')
+@struct(registry, r'''{{to_desc(struct)}}''')
 @dataclass
 class {{ struct.name }}:
   % for member in struct.members:
   % if member.comment
   #{{ member.comment }}
   % endif
-  {{ member.name }}: {{map_type(member.type)}}{{ ' = ' + member.value if member.value }}
+  {{ member.name }}: {{map_type(member)}}{{ ' = ' + member.value if member.value }}
   % endfor
   {{""}}
   {{""}}
@@ -56,45 +55,14 @@ class {{ struct.name }}:
 
 %if proto
 
-% for command in proto.commands
-@struct(registry, '{{to_desc(cmd_to_struct(command))}}')
-@dataclass
-class Cmd{{ to_camel_case(command.name) }}:
-  % for arg in command.args:
-  {{ arg.name }}: {{map_type(arg.type)}}
-  % endfor
-  {{""}}
-  {{""}}
-% endfor
-
-class Computer(RComputer):
-  def __init__(**kwargs):
-    super(
+class Protocol(ProtocolBase):
+  def __init__(self, **kwargs):
+    super().__init__(
       % for option in proto.options:
-      {{option.name}}={{option.value}},
+      {{option.name}}="{{option.value}}",
       % endfor
       registry=registry,
-      desc='{{to_desc(proto)}}',
-      **kwargs
-    )
-  {{""}}
-  % for command in proto.commands:
-  def {{command.name}}(self, *args) -> {{map_type(command.return_type)}}:
-    return self.send_command(Cmd{{to_camel_case(command.name)}}(*args))
-    {{""}}
-  % endfor
-
-{{""}}
-{{""}}
-
-class Device(RDevice):
-  def __init__(**kwargs):
-    super(
-      % for option in proto.options:
-      {{option.name}}={{option.value}},
-      % endfor
-      registry=registry,
-      desc='{{to_desc(proto)}}',
+      desc=r'''{{to_desc(proto)}}''',
       **kwargs
     )
 

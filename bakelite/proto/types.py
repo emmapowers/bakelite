@@ -7,7 +7,6 @@ from dataclasses_json import dataclass_json
 class ProtoType:
   name: str
   size: Optional[int]
-  array: bool
 
 
 @dataclass_json
@@ -51,6 +50,7 @@ class ProtoStructMember:
   value: Optional[Any]
   comment: Optional[str]
   annotations: List[ProtoAnnotation]
+  arraySize: Optional[int]
 
 
 @dataclass_json
@@ -73,26 +73,9 @@ class ProtoOption:
 
 @dataclass_json
 @dataclass
-class ProtoArg:
+class ProtoMessageId:
   name: str
-  type: ProtoType
-
-
-@dataclass_json
-@dataclass
-class ProtoCommand:
-  name: str
-  args: List[ProtoArg]
-  return_type: ProtoType
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
-
-
-@dataclass_json
-@dataclass
-class ProtoEvent:
-  name: str
-  args: List[ProtoArg]
+  number: int
   comment: Optional[str]
   annotations: List[ProtoAnnotation]
 
@@ -100,9 +83,8 @@ class ProtoEvent:
 @dataclass_json
 @dataclass
 class Protocol:
-  options: Dict[str, ProtoOption]
-  commands: List[ProtoCommand]
-  events: List[ProtoEvent]
+  options: List[ProtoOption]
+  message_ids: List[ProtoMessageId]
   comment: Optional[str]
   annotations: List[ProtoAnnotation]
 
@@ -115,9 +97,7 @@ def primitive_types():
     "bits",
     "bytes",
     "string",
-    "utf8string",
-    "unused",
-    "ACK"
+    "unused"
   ]
 
 def is_primitive(t: ProtoType) -> bool:

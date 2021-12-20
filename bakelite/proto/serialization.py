@@ -17,18 +17,6 @@ def _pack_type(value: Any, t: ProtoType, registry: Registry) -> BitStream:
 
   if is_primitive(t):
     bits = _pack_primitive_type(value, t)
-  elif t.array:
-    bits = BitStream()
-    if registry.is_enum(t.name):
-      if len(value) != t.size:
-        raise RuntimeError(f"Expected {t.size} elements in array, got {len(value)}")
-      for v in value:
-        bits += _pack_type(v.value, registry.get(t.name)._desc.type, registry)
-    else:
-      if len(value) != t.size:
-        raise RuntimeError(f"Expected {t.size} elements in array, got {len(value)}")
-      for v in value:
-        bits += v.pack()
   else:
     if registry.is_enum(t.name):
       # Serialize the enums underlying type
@@ -44,9 +32,7 @@ def _pack_primitive_type(value: Any, t: ProtoType) -> BitStream:
   bits: BitStream = None
   format_str: str = ''
 
-  if(t.name == "ACK"):
-    return BitStream()
-  elif(t.name == "flag"):
+  if(t.name == "flag"):
     format_str = "bool:1"
   elif(t.name == "int"):
     format_str = f"int:{t.size}"
@@ -63,14 +49,6 @@ def _pack_primitive_type(value: Any, t: ProtoType) -> BitStream:
     value = value + b'\0'*(t.size-len(value))
     return BitStream(bytes=value, length=t.size * 8)
   elif(t.name == "string"):
-    value = value.encode('ascii')
-    if(len(value) > t.size):
-      raise RuntimeError(f'value is {len(value)}, but must be no longer than {t.size}')
-    #Pad the value with zeros
-    value = value + b'\0'*(t.size-len(value))
-    return BitStream(bytes=value, length=t.size * 8)
-  elif(t.name == "utf8string"):
-    value = value.encode('UTF-8')  # utf-8
     if(len(value) > t.size):
       raise RuntimeError(f'value is {len(value)}, but must be no longer than {t.size}')
     #Pad the value with zeros
@@ -85,15 +63,6 @@ def _unpack_type(stream: BitStream, t: ProtoType, registry: Registry) -> Any:
   value: Any = None
   if is_primitive(t):
     value = _unpack_primitive_type(stream, t)
-  elif t.array:
-    value = []
-    cls = registry.get(t.name)
-    if registry.is_enum(t.name):
-      for _ in range(0, t.size):
-        value.append(cls(_unpack_type(stream, registry.get(t.name)._desc.type, registry)))
-    else:
-      for _ in range(0, t.size):
-        value.append(cls.unpack(stream))
   else:
     cls = registry.get(t.name)
     if registry.is_enum(t.name):
@@ -109,9 +78,7 @@ def _unpack_type(stream: BitStream, t: ProtoType, registry: Registry) -> Any:
 def _unpack_primitive_type(stream: BitStream, t: ProtoType) -> BitStream:
   format_str: str = ''
 
-  if(t.name == "ACK"):
-    return BitStream()
-  elif(t.name == "flag"):
+  if(t.name == "flag"):
     format_str = "bool:1"
   elif(t.name == "int"):
     format_str = f"int:{t.size}"
@@ -126,10 +93,7 @@ def _unpack_primitive_type(stream: BitStream, t: ProtoType) -> BitStream:
     return bits.tobytes()
   elif(t.name == "string"):
     bits = stream.read(f"bits:{t.size*8}")
-    return bits.tobytes().rstrip(b'\x00').decode('ascii')
-  elif(t.name == "utf8string"):
-    bits = stream.read(f"bits:{t.size*8}")
-    return bits.tobytes().rstrip(b'\x00').decode('UTF-8')
+    return bits.tobytes().rstrip(b'\x00')
 
   value = stream.read(format_str)
 
@@ -140,7 +104,14 @@ def pack(self) -> BitStream:
 
   member: ProtoStructMember
   for member in self._desc.members:
-    bits += _pack_type(getattr(self, member.name), member.type, self._registry)
+    value = getattr(self, member.name)
+    if member.arraySize is None:
+      bits += _pack_type(value, member.type, self._registry)
+    else:
+      if len(value) != member.arraySize:
+        raise RuntimeError(f"Expected {t.size} elements in array, got {len(value)}")
+      for element in value:
+        bits += _pack_type(element, member.type, self._registry)
 
   return bits
 
@@ -149,7 +120,13 @@ def unpack(cls, stream: BitStream) -> None:
   members = {}
   member: ProtoStructMember
   for member in cls._desc.members:
-    members[member.name] = _unpack_type(stream, member.type, cls._registry)
+    if member.arraySize is None:
+      members[member.name] = _unpack_type(stream, member.type, cls._registry)
+    else:
+      value = []
+      for i in range(0, member.arraySize):
+        value.append(_unpack_type(stream, member.type, cls._registry))
+      members[member.name] = value
   
   return cls(**members)
 
