@@ -9,7 +9,7 @@ from bakelite.proto.runtime import Registry
 from bakelite.proto.serialization import struct, SerializationError
 from pytest import raises, approx
 from dataclasses import dataclass
-from bitstring import BitArray, BitStream
+from io import BytesIO
 
 FILE_DIR = dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -52,9 +52,11 @@ def describe_serialization():
         class Test:
             pass
 
+        stream = BytesIO()
         t = Test()
+        t.pack(stream)
 
-        expect(t.pack()) == b''
+        expect(stream.getvalue()) == b''
 
     def unpack_empty(expect):
         @struct(Registry(), TEST_JSON)
@@ -62,56 +64,57 @@ def describe_serialization():
         class Test:
             pass
 
+        stream = BytesIO()
         t = Test()
 
-        expect(Test.unpack(b'hello')) == Test()
+        expect(Test.unpack(stream)) == Test()
     
     def test_simple_struct(expect):
         gen = gen_code(FILE_DIR + '/struct.ex')
         Ack = gen['Ack']
 
+        stream = BytesIO()
         ack = Ack(code=123)
-        data = ack.pack()
-        expect(data) == BitStream('0x7b')
-        expect(Ack.unpack(data)) == Ack(code=123)
+        ack.pack(stream)
+        expect(stream.getvalue()) == b'\x7b'
+        stream.seek(0)
+        expect(Ack.unpack(stream)) == Ack(code=123)
 
     def test_complex_struct(expect):
         gen = gen_code(FILE_DIR + '/struct.ex')
         TestStruct = gen['TestStruct']
 
+        stream = BytesIO()
         test_struct = TestStruct(
             int1=5,
             int2=-1234,
             uint1=31,
             uint2=1234,
             float1=-1.23,
-            f1=True,
-            f2=True,
-            f3=False,
-            b1=[1, 0, 1, 0, 1],
-            b2=b'\x01\x02\x03\x04',
-            s1='hey'.encode('ascii'),
+            b1=True,
+            b2=True,
+            b3=False,
+            data=b'\x01\x02\x03\x04',
+            str='hey'.encode('ascii'),
         )
-        data = test_struct.pack()
-        expect(data) == BitStream('0x5fffffb2ef82695fceb8526a808101823432bc8000, 0b0')
-        new_struct = TestStruct.unpack(data)
 
-        # test the float field seperatly
-        expect(new_struct.float1) == approx(-1.23, 0.001)
-        new_struct.float1 = 0
+        test_struct.pack(stream)
+        print(stream.getvalue().hex())
+        expect(stream.getvalue()) == bytes.fromhex('052efbffff1fd204a4709dbf010100010203046865790000')
+        stream.seek(0)
+        new_struct = TestStruct.unpack(stream)
 
         expect(new_struct) == TestStruct(
             int1=5,
             int2=-1234,
             uint1=31,
             uint2=1234,
-            float1=-0,
-            f1=True,
-            f2=True,
-            f3=False,
-            b1=[1, 0, 1, 0, 1],
-            b2=b'\x01\x02\x03\x04',
-            s1='hey'.encode('ascii'),
+            float1=approx(-1.23, 0.001),
+            b1=True,
+            b2=True,
+            b3=False,
+            data=b'\x01\x02\x03\x04',
+            str='hey'.encode('ascii'),
         )
     
     def test_enum_struct(expect):
@@ -120,13 +123,15 @@ def describe_serialization():
         Direction = gen['Direction']
         Speed = gen['Speed']
 
+        stream = BytesIO()
         test_struct = EnumStruct(
             direction=Direction.Left,
             speed=Speed.Fast,
         )
-        data = test_struct.pack()
-        expect(data) == BitStream('0b1011111111')
-        expect(EnumStruct.unpack(data)) == EnumStruct(
+        test_struct.pack(stream)
+        expect(stream.getvalue()) == b'\x02\xff'
+        stream.seek(0)
+        expect(EnumStruct.unpack(stream)) == EnumStruct(
             direction=Direction.Left,
             speed=Speed.Fast,
         )
@@ -137,15 +142,17 @@ def describe_serialization():
         SubA = gen['SubA']
         SubB = gen['SubB']
 
+        stream = BytesIO()
         test_struct = NestedStruct(
-            a=SubA(flag=True, flag2=False),
+            a=SubA(b1=True, b2=False),
             b=SubB(num=127),
             num=-4
         )
-        data = test_struct.pack()
-        expect(data) == BitStream('0b10011111111100')
-        expect(NestedStruct.unpack(data)) == NestedStruct(
-            a=SubA(flag=True, flag2=False),
+        test_struct.pack(stream)
+        expect(stream.getvalue()) == b'\x01\x00\x7f\xfc'
+        stream.seek(0)
+        expect(NestedStruct.unpack(stream)) == NestedStruct(
+            a=SubA(b1=True, b2=False),
             b=SubB(num=127),
             num=-4
         )
@@ -156,28 +163,42 @@ def describe_serialization():
         SubA = gen['SubA']
         SubC = gen['SubC']
 
+        stream = BytesIO()
         test_struct = DeeplyNestedStruct(
-            c=SubC(a=SubA(flag=False, flag2=True))
+            c=SubC(a=SubA(b1=False, b2=True))
         )
-        data = test_struct.pack()
-        expect(data) == BitStream('0b01')
-        expect(DeeplyNestedStruct.unpack(data)) == DeeplyNestedStruct(
-            c=SubC(a=SubA(flag=False, flag2=True))
+        test_struct.pack(stream)
+        expect(stream.getvalue()) == b'\x00\x01'
+        stream.seek(0)
+        expect(DeeplyNestedStruct.unpack(stream)) == DeeplyNestedStruct(
+            c=SubC(a=SubA(b1=False, b2=True))
         )
 
-    def test_nested_struct(expect):
+    def test_array_struct(expect):
         gen = gen_code(FILE_DIR + '/struct.ex')
         ArrayStruct = gen['ArrayStruct']
         Direction = gen['Direction']
         Ack = gen['Ack']
 
+        stream = BytesIO()
         test_struct = ArrayStruct(
             a=[Direction.Left, Direction.Right, Direction.Down],
-            b=[Ack(code=127), Ack(code=64)]
+            b=[Ack(code=127), Ack(code=64)],
+            c=[
+                "abc".encode('ascii'),
+                "def".encode('ascii'),
+                "ghi".encode('ascii')
+            ]
         )
-        data = test_struct.pack()
-        expect(data) == BitStream('0b1011010111111101000000')
-        expect(ArrayStruct.unpack(data)) == ArrayStruct(
+        test_struct.pack(stream)
+        expect(stream.getvalue()) == b'\x02\x03\x01\x7f@abc\x00def\x00ghi\x00'
+        stream.seek(0)
+        expect(ArrayStruct.unpack(stream)) == ArrayStruct(
             a=[Direction.Left, Direction.Right, Direction.Down],
-            b=[Ack(code=127), Ack(code=64)]
+            b=[Ack(code=127), Ack(code=64)],
+            c=[
+                "abc".encode('ascii'),
+                "def".encode('ascii'),
+                "ghi".encode('ascii')
+            ]
         )

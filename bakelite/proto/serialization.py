@@ -1,9 +1,9 @@
+import struct as pystruct
 from typing import Any
 from dataclasses import is_dataclass, fields, field
 from enum import Enum
 from functools import partial
-import bitstring
-from bitstring import BitArray, BitStream
+from io import BufferedIOBase
 
 from .types import ProtoStruct, ProtoEnum, ProtoStructMember, ProtoType, is_primitive
 from .runtime import Registry
@@ -12,54 +12,68 @@ from .runtime import Registry
 class SerializationError(RuntimeError):
   pass
 
-def _pack_type(value: Any, t: ProtoType, registry: Registry) -> BitStream:
-  bits: BitStream = None
-
+def _pack_type(stream: BufferedIOBase, value: Any, t: ProtoType, registry: Registry) -> None:
   if is_primitive(t):
-    bits = _pack_primitive_type(value, t)
+    _pack_primitive_type(stream, value, t)
   else:
     if registry.is_enum(t.name):
       # Serialize the enums underlying type
-      bits = _pack_type(value.value, registry.get(t.name)._desc.type, registry)
+      _pack_type(stream, value.value, registry.get(t.name)._desc.type, registry)
     elif registry.is_struct(t.name):
-      bits = value.pack()
+      value.pack(stream)
     else:
       raise SerializationError(f'{t.name} is not a primitive type, struct, or enum')
 
-  return bits
+def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> None:
+  data: bytes = b''
+  format_str: str = '='
 
-def _pack_primitive_type(value: Any, t: ProtoType) -> BitStream:
-  bits: BitStream = None
-  format_str: str = ''
-
-  if(t.name == "flag"):
-    format_str = "bool:1"
-  elif(t.name == "int"):
-    format_str = f"int:{t.size}"
-  elif(t.name == "uint"):
-    format_str = f"uint:{t.size}"
-  elif(t.name == "float"):
-    format_str = f"float:{t.size}"
-  elif(t.name == "bits"):
-    format_str = f"bits:{t.size}"
+  if(t.name == "bool"):
+    format_str += "?"
+  elif(t.name == "int8"):
+    format_str += "b"
+  elif(t.name == "uint8"):
+    format_str += "B"
+  elif(t.name == "int16"):
+    format_str += "h"
+  elif(t.name == "uint16"):
+    format_str += "H"
+  elif(t.name == "int32"):
+    format_str += "i"
+  elif(t.name == "uint32"):
+    format_str += "I"
+  elif(t.name == "int64"):
+    format_str += "q"
+  elif(t.name == "uint64"):
+    format_str += "Q"
+  elif(t.name == "float32"):
+    format_str += "f"
+  elif(t.name == "float64"):
+    format_str += "d"
   elif(t.name == "bytes"):
+    print(value)
     if(len(value) > t.size):
-      raise RuntimeError(f'value is {len(value)}, but must be no longer than {t.size}')
+      raise SerializationError(f'value is {len(value)}, but must be no longer than {t.size}')
     #Pad the value with zeros
     value = value + b'\0'*(t.size-len(value))
-    return BitStream(bytes=value, length=t.size * 8)
+    stream.write(value)
+    return
   elif(t.name == "string"):
-    if(len(value) > t.size):
-      raise RuntimeError(f'value is {len(value)}, but must be no longer than {t.size}')
+    if(len(value) >= t.size):
+      raise SerializationError(f'value is {len(value)}, but must be no longer than {t.size}, with room for a null byte')
     #Pad the value with zeros
     value = value + b'\0'*(t.size-len(value))
-    return BitStream(bytes=value, length=t.size * 8)
-
-  bits = bitstring.pack(format_str, value)
+    stream.write(value)
+    return
+  else:
+    raise SerializationError(f"Unkown type: {t.name}")
   
-  return bits
+  data = pystruct.pack(format_str, value)
 
-def _unpack_type(stream: BitStream, t: ProtoType, registry: Registry) -> Any:
+  stream.write(data)
+  
+
+def _unpack_type(stream: BufferedIOBase, t: ProtoType, registry: Registry) -> Any:
   value: Any = None
   if is_primitive(t):
     value = _unpack_primitive_type(stream, t)
@@ -75,48 +89,59 @@ def _unpack_type(stream: BitStream, t: ProtoType, registry: Registry) -> Any:
 
   return value
 
-def _unpack_primitive_type(stream: BitStream, t: ProtoType) -> BitStream:
-  format_str: str = ''
+def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> None:
+  data: bytes = b''
+  format_str: str = '='
 
-  if(t.name == "flag"):
-    format_str = "bool:1"
-  elif(t.name == "int"):
-    format_str = f"int:{t.size}"
-  elif(t.name == "uint"):
-    format_str = f"uint:{t.size}"
-  elif(t.name == "float"):
-    format_str = f"float:{t.size}"
-  elif(t.name == "bits"):
-    format_str = f"bits:{t.size}"
+  if(t.name == "bool"):
+    format_str += "?"
+  elif(t.name == "int8"):
+    format_str += "b"
+  elif(t.name == "uint8"):
+    format_str += "B"
+  elif(t.name == "int16"):
+    format_str += "h"
+  elif(t.name == "uint16"):
+    format_str += "H"
+  elif(t.name == "int32"):
+    format_str += "i"
+  elif(t.name == "uint32"):
+    format_str += "I"
+  elif(t.name == "int64"):
+    format_str += "q"
+  elif(t.name == "uint64"):
+    format_str += "Q"
+  elif(t.name == "float32"):
+    format_str += "f"
+  elif(t.name == "float64"):
+    format_str += "d"
   elif(t.name == "bytes"):
-    bits = stream.read(f"bits:{t.size*8}")
-    return bits.tobytes()
+    data = stream.read(t.size)
+    return data
   elif(t.name == "string"):
-    bits = stream.read(f"bits:{t.size*8}")
-    return bits.tobytes().rstrip(b'\x00')
+    data = stream.read(t.size)
+    return data.rstrip(b'\00') # Strip null bytes from string
 
-  value = stream.read(format_str)
+  data = stream.read(pystruct.calcsize(format_str))
+  print(data)
+  value = pystruct.unpack(format_str, data)[0]
 
   return value
 
-def pack(self) -> BitStream:
-  bits = BitStream()
-
+def pack(self, stream: BufferedIOBase) -> None:
   member: ProtoStructMember
   for member in self._desc.members:
     value = getattr(self, member.name)
     if member.arraySize is None:
-      bits += _pack_type(value, member.type, self._registry)
+      _pack_type(stream, value, member.type, self._registry)
     else:
       if len(value) != member.arraySize:
-        raise RuntimeError(f"Expected {t.size} elements in array, got {len(value)}")
+        raise SerializationError(f"Expected {t.size} elements in array, got {len(value)}")
       for element in value:
-        bits += _pack_type(element, member.type, self._registry)
-
-  return bits
+        _pack_type(stream, element, member.type, self._registry)
 
 
-def unpack(cls, stream: BitStream) -> None:
+def unpack(cls, stream: BufferedIOBase) -> None:
   members = {}
   member: ProtoStructMember
   for member in cls._desc.members:

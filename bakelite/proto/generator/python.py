@@ -18,23 +18,30 @@ template = env.get_template('python.py.j2')
 
 def _map_type(member: ProtoStructMember) -> str:
   prim_types = {
-    "flag": "bool",
-    "int": "int",
-    "uint": "int",
-    "float": "float",
-    "bits": "bytes",
+    "bool": "bool",
+    "int8": "int",
+    "int16": "int",
+    "int32": "int",
+    "int64": "int",
+    "uint8": "int",
+    "uint16": "int",
+    "uint32": "int",
+    "uint64": "int",
+    "float32": "float",
+    "float64": "float",
     "bytes": "bytes",
     "string": "str",
-    "unused": "None",
   }
 
   if member.type.name in prim_types:
-    return prim_types[member.type.name]
+    type_name = prim_types[member.type.name]
+  else:
+    type_name = member.type.name
   
   if member.arraySize is not None:
-    return f"List[{member.type.name}]"
+    return f"List[{type_name}]"
   else:
-    return member.type.name
+    return type_name
 
 def _to_desc(dclass):
   return dclass.to_json()

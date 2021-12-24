@@ -9,7 +9,7 @@ from bakelite.proto.runtime import Registry
 from bakelite.proto.serialization import struct, SerializationError
 from pytest import raises, approx
 from dataclasses import dataclass
-from bitstring import BitArray, BitStream, ByteStore
+from io import BytesIO
 
 FILE_DIR = dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -33,27 +33,18 @@ def describe_protocol():
         Move = gen['Move']
         Ack = gen['Ack']
 
-        buffer = b''
-
-        def read():
-            nonlocal buffer
-            return buffer
-            
-        def write(data):
-            nonlocal buffer
-            buffer=data
+        stream = BytesIO()
 
         proto = Protocol(
-            read=read,
-            write=write,
+            stream=stream
         )
 
         proto.send(Ack(code=111))
-        expect(buffer) == b'\x00\x04\x02o \x00'
+        expect(stream.getvalue()) == b'\x00\x04\x02o \x00'
 
+        stream.seek(0)
         proto2 = Protocol(
-            read=read,
-            write=write,
+            stream=stream
         )
         msg = proto2.poll()
         expect(msg) == Ack(code=111)

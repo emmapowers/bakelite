@@ -11,14 +11,14 @@
 # string[]               variable length string
 # unused[bits]           indicates data that is not used for any purpose, or reserved
 
-enum Direction: uint[2] {
+enum Direction: uint8 {
   Up = 0
   Down = 1
   Left = 2
   Right = 3
 }
 
-enum Speed: uint[8] {
+enum Speed: uint8 {
   Stopped = 0
   Slow = 80
   Fast = 255
@@ -30,18 +30,16 @@ struct Move {
 }
 
 struct Ack {
-  code: uint[8]
+  code: uint8
 }
 
 protocol {
   maxLength = 256
-  version =  5
-  minVersion = 2
   framing = COBS
-  crc = True
+  crc = CRC8
 
   messageIds {
     Move = 1
     Ack = 2
-  } 
+  }
 }

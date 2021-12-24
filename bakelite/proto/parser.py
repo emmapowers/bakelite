@@ -101,15 +101,15 @@ class TreeTransformer(Transformer):
     return _Number(
       value=int(args[0]))
 
-  def prim_sized(self, args):
-    return ProtoType(
-      name=str(args[0]),
-      size=int(args[1]))
-  
-  def prim_unsized(self, args):
+  def prim(self, args):
     return ProtoType(
       name=str(args[0]),
       size=0)
+
+  def prim_variable(self, args):
+    return ProtoType(
+      name=str(args[0]),
+      size=int(args[1]))
 
   def proto(self, args):
     ids = _find_one(args, _ProtoMessageIds)
@@ -166,6 +166,7 @@ class TreeTransformer(Transformer):
         name=str(args[0]),
         size=None)
 
+
 def parse(text: str):
   global _g_parser
 
@@ -176,7 +177,10 @@ def parse(text: str):
     _g_parser = Lark(grammar)
 
   tree = _g_parser.parse(text)
+  #print(tree.pretty())
   tree = TreeTransformer().transform(tree)
+
+  # print(tree.pretty())
 
   items = list(tree.iter_subtrees_topdown())[0].children
 

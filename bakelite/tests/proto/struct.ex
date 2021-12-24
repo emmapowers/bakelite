@@ -1,24 +1,11 @@
-# Primitive Types
-#################
-# uint[bits]             unsigned integer
-# int[bits]              signed integer
-# float[bits]            iEEE floating point number
-# flag:                  One bit boolean value
-# bits[bits]             Some number of bits,
-# bytes[bytes]           Some number of bytes.
-# bytes[]                series of bytes, length is variable
-# string[bytes]          fixed length string, may be ascii or utf8. Unused characters are indicated as null
-# string[]               variable length string
-# unused[bits]           indicates data that is not used for any purpose, or reserved
-
-enum Direction: uint[2] {
+enum Direction: uint8 {
   Up = 0
   Down = 1
   Left = 2
   Right = 3
 }
 
-enum Speed: uint[8] {
+enum Speed: uint8 {
   Stopped = 0
   Slow = 80
   Fast = 255
@@ -30,36 +17,35 @@ struct EnumStruct {
 }
 
 struct TestStruct {
-  int1: int[4]
-  int2: int[32]
-  uint1: uint[5]
-  uint2: uint[16]
-  float1: float[32]
-  f1: flag
-  f2: flag
-  f3: flag
-  b1: bits[5]
-  b2: bytes[4]
-  s1: string[5]
+  int1: int8
+  int2: int32
+  uint1: uint8
+  uint2: uint16
+  float1: float32
+  b1: bool
+  b2: bool
+  b3: bool
+  data: bytes[4]
+  str: string[5]
 }
 
 struct Ack {
-  code: uint[8]
+  code: uint8
 }
 
 struct SubA {
-  flag: flag
-  flag2: flag
+  b1: bool
+  b2: bool
 }
 
 struct SubB {
-  num: uint[8]
+  num: uint8
 }
 
 struct NestedStruct {
   a: SubA
   b: SubB
-  num: int[4]
+  num: int8
 }
 
 struct SubC {
@@ -71,6 +57,7 @@ struct DeeplyNestedStruct {
 }
 
 struct ArrayStruct {
-  a[3]: Direction
-  b[2]: Ack
+  a: Direction[3]
+  b: Ack[2]
+  c: string[4][3]
 }

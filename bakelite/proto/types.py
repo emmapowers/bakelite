@@ -90,14 +90,12 @@ class Protocol:
 
 def primitive_types():
   return [
-    "flag",
-    "int",
-    "uint",
-    "float",
-    "bits",
+    "bool",
+    "int8", "int16", "int32", "int64",
+    "uint8", "uint16", "uint32", "uint64",
+    "float32", "float64",
     "bytes",
     "string",
-    "unused"
   ]
 
 def is_primitive(t: ProtoType) -> bool:

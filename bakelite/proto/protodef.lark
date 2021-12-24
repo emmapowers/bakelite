@@ -12,10 +12,14 @@ LITERAL: SIGNED_NUMBER | NUMBER | ESCAPED_STRING | CNAME
 comment: "#" /.+/
 
 LENGTH: "[" NUMBER* "]"
-TYPENAME: "int" | "uint" | "float" | "bits" | "bytes" | "string" | "unused"
-prim_sized: TYPENAME "[" [NUMBER] "]"
-prim_unsized: "flag"
-type: prim_sized | prim_unsized | CNAME
+TYPENAME: ("int8" | "int16" | "int32" | "int64" 
+  | "uint8" | "uint16" | "uint32" | "uint64"
+  | "float16" | "float32"
+  | "bool" )
+VARIABLE_TYPENAME: "bytes" | "string"
+prim: TYPENAME
+prim_variable.1: VARIABLE_TYPENAME "[" [NUMBER] "]"
+type: prim_variable | prim | CNAME
 array: "[" NUMBER* "]"
 
 name: CNAME
@@ -27,9 +31,9 @@ argument_val: [CNAME "="] LITERAL
 annotation: "@" CNAME ["(" (argument_val ",")* [argument_val|LITERAL] ")"]
 
 enum_value: annotation* name "=" value [comment]
-enum: annotation* "enum" name ":" (prim_sized | prim_unsized) [comment] "{" (enum_value|comment)+ "}" [comment]
+enum: annotation* "enum" name ":" prim [comment] "{" (enum_value|comment)+ "}" [comment]
 
-struct_member: annotation* name [array] ":" type ["=" value ] [comment]
+struct_member: annotation* name ":" type [array] ["=" value ] [comment]
 struct: annotation* "struct" name [comment] "{" (struct_member|comment)+ "}" [comment]
 
 proto_message_id: annotation* name "=" number [comment]

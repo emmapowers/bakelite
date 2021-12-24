@@ -1,7 +1,8 @@
+import struct
 from typing import Any, Dict, List
 from enum import Enum
 from dataclasses import is_dataclass
-from bitstring import pack, BitStream
+from io import BytesIO, BufferedIOBase
 
 from .types import Protocol, ProtoMessageId, ProtoStruct
 from .framing import Framer
@@ -28,15 +29,13 @@ class ProtocolBase:
   def __init__(
                self,
                *,
-               read,
-               write,
+               stream,
                registry,
                desc,
-               crc=True,
+               crc="CRC8",
                framer=None,
                **kwargs):
-    self._read = read
-    self._write = write
+    self._stream = stream
     self._registry = registry
     self._desc: List[ProtoMessageId]
     self._desc =  Protocol.from_json(desc)
@@ -45,8 +44,26 @@ class ProtocolBase:
     self._ids = {id.number: id.name for id in self._desc.message_ids}
     self._messages = {id.name: id.number for id in self._desc.message_ids}
 
+    use_crc=False
+    crc_bytes=0
+    crc = crc.lower()
+
+    if(crc == "none"):
+      use_crc = False
+    elif(crc == "crc8"):
+      use_crc = True
+      crc_bytes = 1
+    elif(crc == "crc16"):
+      use_crc = True
+      crc_bytes = 2
+    elif(crc == "crc32"):
+      use_crc = True
+      crc_bytes = 4
+    else:
+      raise RuntimeError(f"Unkown CRC type {crc}")
+
     if not framer:
-      self._framer = Framer(crc=crc)
+      self._framer = Framer(crc=use_crc, crc_num_bytes=crc_bytes)
     else:
       self._framer = framer
 
@@ -59,16 +76,17 @@ class ProtocolBase:
       raise ProtocolError(f"{type(message)} has not been assigned a message ID")
     msg_id = self._messages[msg_name]
 
-    stream = pack("uint:8", msg_id)
-    stream += message.pack()
-    frame = self._framer.encode_frame(stream.bytes)
+    stream = BytesIO()
+    stream.write(struct.pack("=B", msg_id))
+    message.pack(stream)
+    frame = self._framer.encode_frame(stream.getvalue())
 
-    self._write(frame)
+    self._stream.write(frame)
 
   def poll(self) -> List[Any]:
     command = None
 
-    data = self._read()
+    data = self._stream.read()
     self._framer.append_buffer(data)
 
     frame = self._framer.decode_frame()
@@ -79,7 +97,7 @@ class ProtocolBase:
 
       if msg_id in self._ids:
         message_type = self._registry.get(self._ids[msg_id])
-        return message_type.unpack(BitStream(msg))
+        return message_type.unpack(BytesIO(msg))
       else:
         raise ProtocolError(f"Received unkown message id {msg_id}")
 
