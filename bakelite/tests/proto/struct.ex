@@ -61,3 +61,9 @@ struct ArrayStruct {
   b: Ack[2]
   c: string[4][3]
 }
+
+struct VariableLength {
+  a: bytes[]
+  b: string[]
+  c: uint8[]
+}

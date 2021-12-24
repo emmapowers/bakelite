@@ -202,3 +202,22 @@ def describe_serialization():
                 "ghi".encode('ascii')
             ]
         )
+    
+    def test_variable_types(expect):
+        gen = gen_code(FILE_DIR + '/struct.ex')
+        VariableLength = gen['VariableLength']
+
+        stream = BytesIO()
+        test_struct = VariableLength(
+            a=b'hello\x00World',
+            b='This is a test string!'.encode('ascii'),
+            c=[1, 2, 3, 4]
+        )
+        test_struct.pack(stream)
+        expect(stream.getvalue()) == b'\x0bhello\x00WorldThis is a test string!\x00\x04\x01\x02\x03\x04'
+        stream.seek(0)
+        expect(VariableLength.unpack(stream)) == VariableLength(
+            a=b'hello\x00World',
+            b='This is a test string!'.encode('ascii'),
+            c=[1, 2, 3, 4]
+        )

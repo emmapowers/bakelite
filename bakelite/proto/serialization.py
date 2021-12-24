@@ -50,12 +50,24 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
     format_str += "f"
   elif(t.name == "float64"):
     format_str += "d"
+  elif(t.name == "bytes" and t.size == 0):
+    if(len(value) > 255):
+      raise SerializationError(f'value is {len(value)}, but must be no longer than 255')
+    stream.write(pystruct.pack('=B', len(value)))
+    stream.write(value)
+    return
   elif(t.name == "bytes"):
-    print(value)
     if(len(value) > t.size):
       raise SerializationError(f'value is {len(value)}, but must be no longer than {t.size}')
     #Pad the value with zeros
     value = value + b'\0'*(t.size-len(value))
+    stream.write(value)
+    return
+  elif(t.name == "string" and t.size == 0):
+    if(value[:-1].find(b'\x00') > 0):
+      raise SerializationError("Found a null byte before the end of the string")
+    if(value[-1] != 0):
+      value = value + b'\0'
     stream.write(value)
     return
   elif(t.name == "string"):
@@ -115,15 +127,29 @@ def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> None:
     format_str += "f"
   elif(t.name == "float64"):
     format_str += "d"
+  elif(t.name == "bytes" and t.size == 0):
+    size = pystruct.unpack('=B', stream.read(1))[0]
+    data = stream.read(size)
+    return data
   elif(t.name == "bytes"):
     data = stream.read(t.size)
+    return data
+  elif(t.name == "string" and t.size == 0):
+    data = b''
+    while True:
+      byte = stream.read(1)
+      if byte == b'\x00' or byte == b'':
+        break
+      data += byte
+
     return data
   elif(t.name == "string"):
     data = stream.read(t.size)
     return data.rstrip(b'\00') # Strip null bytes from string
+  else:
+    raise SerializationError(f"Unkown type: {t.name}")
 
   data = stream.read(pystruct.calcsize(format_str))
-  print(data)
   value = pystruct.unpack(format_str, data)[0]
 
   return value
@@ -135,8 +161,13 @@ def pack(self, stream: BufferedIOBase) -> None:
     if member.arraySize is None:
       _pack_type(stream, value, member.type, self._registry)
     else:
-      if len(value) != member.arraySize:
-        raise SerializationError(f"Expected {t.size} elements in array, got {len(value)}")
+      if member.arraySize != 0:
+        if len(value) != member.arraySize:
+          raise SerializationError(f"Expected {t.size} elements in array, got {len(value)}")
+      else:
+        if len(value) > 255:
+          raise SerializationError(f"Got an array of size {len(value)}. Arrays must not exceed 255 elements")
+        stream.write(pystruct.pack('=B', len(value)))
       for element in value:
         _pack_type(stream, element, member.type, self._registry)
 
@@ -149,7 +180,12 @@ def unpack(cls, stream: BufferedIOBase) -> None:
       members[member.name] = _unpack_type(stream, member.type, cls._registry)
     else:
       value = []
-      for i in range(0, member.arraySize):
+      size = member.arraySize
+      
+      if size == 0:
+        size = pystruct.unpack('=B', stream.read(1))[0]
+
+      for i in range(0, size):
         value.append(_unpack_type(stream, member.type, cls._registry))
       members[member.name] = value
   

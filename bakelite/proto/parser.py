@@ -54,8 +54,12 @@ def _find_many(args, class_type):
 
 class TreeTransformer(Transformer):
   def array(self, args):
-    return _Array(
-      value=int(args[0]))
+    if(len(args) > 0):
+      return _Array(
+        value=int(args[0]))
+    else:
+      return _Array(
+        value=0)
 
   def argument_val(self, args):
     if len(args) == 1:
@@ -107,9 +111,14 @@ class TreeTransformer(Transformer):
       size=0)
 
   def prim_variable(self, args):
-    return ProtoType(
+    if(len(args) > 1):
+      return ProtoType(
+        name=str(args[0]),
+        size=int(args[1]))
+    else:
+      return ProtoType(
       name=str(args[0]),
-      size=int(args[1]))
+      size=0)
 
   def proto(self, args):
     ids = _find_one(args, _ProtoMessageIds)
