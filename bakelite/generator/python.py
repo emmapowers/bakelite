@@ -1,12 +1,11 @@
 from jinja2 import Environment, PackageLoader
 from dataclasses import asdict
 
-from ..types import *
-from typing import List
-from ..util import to_camel_case
+from .types import *
+from .util import to_camel_case
 
 env = Environment(
-    loader=PackageLoader('bakelite.proto.generator', 'templates'),
+    loader=PackageLoader('bakelite.generator', 'templates'),
     trim_blocks=True,
     lstrip_blocks=True,
     keep_trailing_newline=True,

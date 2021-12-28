@@ -3,12 +3,8 @@
 
 import json
 import os
-from bakelite.proto import parse, List
-from bakelite.proto.generator.python import render
-from bakelite.proto.runtime import Registry
-from bakelite.proto.serialization import struct, SerializationError
-from pytest import raises, approx
-from dataclasses import dataclass
+from bakelite.generator import parse
+from bakelite.generator.python import render
 from io import BytesIO
 
 FILE_DIR = dir_path = os.path.dirname(os.path.realpath(__file__))

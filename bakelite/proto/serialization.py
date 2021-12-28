@@ -5,7 +5,7 @@ from enum import Enum
 from functools import partial
 from io import BufferedIOBase
 
-from .types import ProtoStruct, ProtoEnum, ProtoStructMember, ProtoType, is_primitive
+from ..generator.types import ProtoStruct, ProtoEnum, ProtoStructMember, ProtoType, is_primitive
 from .runtime import Registry
 
 

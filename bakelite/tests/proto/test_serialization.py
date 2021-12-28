@@ -3,8 +3,8 @@
 
 import json
 import os
-from bakelite.proto import parse, List
-from bakelite.proto.generator.python import render
+from bakelite.generator import parse
+from bakelite.generator.python import render
 from bakelite.proto.runtime import Registry
 from bakelite.proto.serialization import struct, SerializationError
 from pytest import raises, approx

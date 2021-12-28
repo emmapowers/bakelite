@@ -4,7 +4,7 @@ from enum import Enum
 from dataclasses import is_dataclass
 from io import BytesIO, BufferedIOBase
 
-from .types import Protocol, ProtoMessageId, ProtoStruct
+from ..generator.types import Protocol, ProtoMessageId, ProtoStruct
 from .framing import Framer
 
 class ProtocolError(RuntimeError):
