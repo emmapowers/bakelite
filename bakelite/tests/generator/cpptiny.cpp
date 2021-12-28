@@ -1,33 +1,56 @@
-//#include "types.h"
 #include <iostream>
 #include <iomanip>
-#include <stdio.h>
-#include <type_traits>
-#include "newtypes.h"
+#include "struct.h"
+
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
 
 using namespace std;
 using namespace Bakelite;
 
-ostream &printHex(const char *data, int length) {
-  std::ios state(NULL);
-  state.copyfmt(std::cout);
+string hexString(const char *data, int length) {
+  stringstream ss;
+  
+  ss << std::hex;
+
   for(int i = 0; i < length; i++) {
-    cout << std::setw(2) << std::setfill('0') << std::hex << (unsigned int)(data[i] & 0xffu);
+    ss << std::setw(2) << std::setfill('0') << (unsigned int)(data[i] & 0xffu);
   }
-  cout << "\n";
-  std::cout.copyfmt(state);
-  return std::cout;
+  
+  return ss.str();
 }
 
-int main() {
+void printHex(const char *data, int length) {
+  cout << hexString(data, length) << endl;
+}
+
+
+TEST_CASE("simple struct") {
   char *data = new char[256];
   char *heap = new char[256];
   BufferStream stream(data, 256, heap, 256);
 
-  uint8_t arrayVariable[3] = {1, 2, 3};
-  const char *stringList[] = { "One", "Two", "Three" };
+  Ack t1 = {
+    123
+  };
+  REQUIRE(t1.pack(stream) == 0);
 
-  TestStruct testStruct = {
+  CHECK(stream.pos() == 1);
+  CHECK(hexString(data, stream.pos()) == "7b");
+
+  Ack t2;
+  stream.seek(0);
+  REQUIRE(t2.unpack(stream) == 0);
+  
+  CHECK(t2.code == 123);
+}
+
+TEST_CASE("complex struct") {
+  char *data = new char[256];
+  char *heap = new char[256];
+  BufferStream stream(data, 256, heap, 256);
+
+  TestStruct t1 = {
     5,
     -1234,
     31,
@@ -37,42 +60,24 @@ int main() {
     true,
     false,
     {1, 2, 3, 4},
-    "Hey",
-    {1, 2, 3, 4, 5},
-    { arrayVariable, 3 },
-    (char *)"Hello World!",
-    { (char **)stringList, 3}
+    "hey",
   };
-  int rcode = testStruct.pack(stream);
-  cout << "Pack: " << rcode << endl;
+  REQUIRE(t1.pack(stream) == 0);
 
-  cout << stream.pos() << endl;
-  printHex(data, stream.pos());
+  CHECK(stream.pos() == 24);
+  CHECK(hexString(data, stream.pos()) == "052efbffff1fd204a4709dbf010100010203046865790000");
 
   TestStruct t2;
   stream.seek(0);
-  rcode = t2.unpack(stream);
-  cout << "Unpack: " << rcode << endl;
-
-  cout
-    << "int1: " << (int)t2.int1 << endl
-    << "int2: " << t2.int2 << endl
-    << "uint1: " << (unsigned)t2.uint1 << endl
-    << "uint2: " << t2.uint2 << endl
-    << "float1: " << t2.float1 << endl
-    << "b1: " << (t2.b1 ? "true" : "false") << endl
-    << "b2: " << (t2.b2 ? "true" : "false") << endl
-    << "b3: " << (t2.b3 ? "true" : "false") << endl
-    << "data: ";
-  printHex((const char *)t2.data, sizeof(t2.data));
-  cout
-    << "str: " << t2.str << endl;
-  cout << "array: ";
-  printHex((const char *)t2.array, sizeof(t2.array));
-  cout << "arrayVariable: ";
-  printHex((const char *)t2.arrayVariable.data, t2.arrayVariable.size);
-  cout << "stringVariable: '" << t2.stringVariable << "'" << endl;
-  for(int i = 0; i < t2.stringList.size; i++) {
-    cout << "stringList: '" << t2.stringList.data[i] << "'" << endl;
-  }
+  REQUIRE(t2.unpack(stream) == 0);
+  
+  CHECK(t2.int1 == 5);
+  CHECK(t2.int2 == -1234);
+  CHECK(t2.uint1 == 31);
+  CHECK(t2.uint2 == 1234);
+  CHECK(t2.float1 == doctest::Approx(-1.23));
+  CHECK(t2.b1 == true);
+  CHECK(t2.b2 == true);
+  CHECK(t2.b3 == false);
+  CHECK(string(t2.str) == "hey");
 }

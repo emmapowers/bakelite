@@ -27,10 +27,6 @@ struct TestStruct {
   b3: bool
   data: bytes[4]
   str: string[5]
-  array: uint16[5]
-  arrayVariable: uint8[]
-  stringVariable: string[]
-  stringList: string[][]
 }
 
 struct Ack {
