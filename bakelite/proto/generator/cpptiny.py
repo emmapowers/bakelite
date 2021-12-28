@@ -1,5 +1,6 @@
 from jinja2 import Environment, PackageLoader
 from dataclasses import asdict
+from copy import copy
 
 from ..types import *
 from typing import List
@@ -40,19 +41,27 @@ def _map_type(t: ProtoType):
   
   return type_name
 
-def _map_type_member(member: ProtoStructMember) -> str:
+def _map_type_member(member: ProtoStructMember, use_pointer=False) -> str:
   type_name = _map_type(member.type)
   
-  if member.arraySize is None or member.arraySize > 0:
-    return type_name
-  elif member.arraySize == 0:
+  if member.type.name == "bytes" and member.type.size == 0 and member.arraySize == 0:
+    return f"Bakelite::SizedArray<Bakelite::SizedArray<{type_name}> >"
+  elif member.type.name == "bytes" and member.type.size == 0:
+    return f"Bakelite::SizedArray<{type_name}>"
+  if member.type.name == "string" and (member.type.size == 0 or use_pointer == True) and member.arraySize == 0:
+    return f"Bakelite::SizedArray<{type_name}*>"
+  if member.type.name == "string" and (member.type.size == 0 or use_pointer == True):
     return f"{type_name}*"
+  elif member.arraySize == 0:
+    return f"Bakelite::SizedArray<{type_name}>"
+  else:
+    return type_name
 
 
 def _size_postfix(member: ProtoStructMember) -> str:
   if member.type.name == "bytes" or member.type.name == "string":
     if member.type.size == 0:
-      return []
+      return ''
     else:
       return f"[{member.type.size}]"
   else:
@@ -74,58 +83,64 @@ def render(enums: List[ProtoEnum],
   structs_types = { struct.name: struct for struct in structs }
 
   def _write_type(member: ProtoStructMember):
-    errorChecking = """
-    if(rcode != 0)
-      return rcode;
-"""
-
     if member.arraySize is not None:
-      pass
+      size_arg = f', {member.arraySize}' if member.arraySize > 0 else ''
+      tmp_member = copy(member)
+      tmp_member.arraySize = None
+      tmp_member.name = "val"
+      tmp_member_type = _map_type_member(tmp_member, use_pointer=True)
+      return (
+f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, {tmp_member_type} const &val) {{
+      return {_write_type(tmp_member)}
+    }});""")
     elif member.type.name in enums_types:
-      underlying_type = enums_types[member.type.name].type
-      return f"rcode = write(stream, ({underlying_type.name}){member.name});{errorChecking}"
+      underlying_type = _map_type(enums_types[member.type.name])
+      return f"write(stream, ({underlying_type}){member.name});"
     elif member.type.name in structs_types:
-      return f"rcode = {member.name}.pack(stream);{errorChecking}"
+      return f"{member.name}.pack(stream);"
     elif member.type.name in prim_types and member.type.name != "bytes" and member.type.name != "string":
-      return f"rcode = write(stream, {member.name});{errorChecking}"
+      return f"write(stream, {member.name});"
     elif member.type.name == "bytes":
       if member.type.size != 0:
-        return f"rcode = writeBytesFixed(stream, {member.name}, {member.type.size});{errorChecking}"
+        return f"writeBytes(stream, {member.name}, {member.type.size});"
       else:
-        return f"rcode = writeBytes(stream, {member.name}.data, {member.name}.size);{errorChecking}"
+        return f"writeBytes(stream, {member.name});"
     elif member.type.name == "string":
       if member.type.size != 0:
-        return f"rcode = writeStringFixed(stream, {member.name}, {member.type.size});{errorChecking}"
+        return f"writeString(stream, {member.name}, {member.type.size});"
       else:
-        return f"rcode = writeString(stream, {member.name}.data);{errorChecking}"
+        return f"writeString(stream, {member.name});"
     else:
       raise RuntimeError(f"Unkown type {member.type.name}")
 
   def _read_type(member: ProtoStructMember):
-    errorChecking = """
-    if(rcode != 0)
-      return rcode;
-"""
-
     if member.arraySize is not None:
-      pass
+      size_arg = f', {member.arraySize}' if member.arraySize > 0 else ''
+      tmp_member = copy(member)
+      tmp_member.arraySize = None
+      tmp_member.name = "val"
+      tmp_member_type = _map_type_member(tmp_member, use_pointer=True)
+      return (
+f"""readArray(stream, {member.name}{size_arg}, [](T &stream, {tmp_member_type} &val) {{
+      return {_read_type(tmp_member)}
+    }});""")
     elif member.type.name in enums_types:
-      underlying_type = enums_types[member.type.name].type
-      return f"rcode = read(stream, ({underlying_type.name}){member.name});{errorChecking}"
+      underlying_type = _map_type(enums_types[member.type.name])
+      return f"read(stream, ({underlying_type}){member.name});"
     elif member.type.name in structs_types:
-      return f"rcode = {member.name}.unpack(stream);{errorChecking}"
+      return f"{member.name}.unpack(stream);"
     elif member.type.name in prim_types and member.type.name != "bytes" and member.type.name != "string":
-      return f"rcode = read(stream, {member.name});{errorChecking}"
+      return f"read(stream, {member.name});"
     elif member.type.name == "bytes":
       if member.type.size != 0:
-        return f"rcode = readBytesFixed(stream, {member.name}, {member.type.size});{errorChecking}"
+        return f"readBytes(stream, {member.name}, {member.type.size});"
       else:
-        return f"rcode = readBytes(stream, {member.name}.data, {member.name}.size);{errorChecking}"
+        return f"readBytes(stream, {member.name});"
     elif member.type.name == "string":
       if member.type.size != 0:
-        return f"rcode = readStringFixed(stream, {member.name}, {member.type.size});{errorChecking}"
+        return f"readString(stream, {member.name}, {member.type.size});"
       else:
-        return f"rcode = readString(stream, {member.name}.data);{errorChecking}"
+        return f"readString(stream, {member.name});"
     else:
       raise RuntimeError(f"Unkown type {member.type.name}")
 

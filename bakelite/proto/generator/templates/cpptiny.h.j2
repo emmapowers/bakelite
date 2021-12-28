@@ -11,7 +11,7 @@ enum class {{ enum.name }}: {{map_type(enum.type)}} {
   % if value.comment
   // {{ value.comment }}
   % endif
-  {{ value.name }} = {{ value.value }};
+  {{ value.name }} = {{ value.value }},
   % endfor
 };
 {{""}}
@@ -27,15 +27,17 @@ struct {{ struct.name }} {
   % if member.comment
   // {{ member.comment }}
   % endif
-  {{map_type_member(member)}} {{ member.name }}{{-size_postfix(member)-}}{{-array_postfix(member)-}} {{- ' = ' + member.value if member.value -}};
+  {{map_type_member(member)}} {{ member.name }}{{-array_postfix(member)-}}{{-size_postfix(member)-}} {{- ' = ' + member.value if member.value -}};
   % endfor
   {{""}}
   template<class T>
   int pack(T &stream) const {
     int rcode = 0;
     % for member in struct.members:
-    {{write_type(member)}}
-    %- endfor
+    rcode = {{write_type(member)}}
+    if(rcode != 0)
+      return rcode;
+    % endfor
     return rcode;
   }
   {{""}}
@@ -43,8 +45,10 @@ struct {{ struct.name }} {
   int unpack(T &stream) {
     int rcode = 0;
     % for member in struct.members:
-    {{read_type(member)}}
-    %- endfor
+    rcode = {{read_type(member)}}
+    if(rcode != 0)
+      return rcode;
+    % endfor
     return rcode;
   }
 };

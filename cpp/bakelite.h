@@ -10,6 +10,10 @@ namespace Bakelite {
   struct SizedArray {
     T *data = nullptr;
     S size = 0;
+
+    const T &at(size_t pos) const {
+      return data[pos];
+    }
   };
 
   class BufferStream {
@@ -92,7 +96,7 @@ namespace Bakelite {
   }
 
   template <class T, class V, class F>
-  int writeArray(T& stream, const V val[], int size, F writeCb) {
+  int writeArray(T& stream, const V *val, int size, F writeCb) {
     for(int i = 0; i < size; i++) {
       int rcode = writeCb(stream, val[i]);
       if(rcode != 0)
@@ -102,10 +106,10 @@ namespace Bakelite {
   }
 
   template <class T, class V, class F>
-  int writeArray(T& stream, const SizedArray<V> val, F writeCb) {
+  int writeArray(T& stream, const SizedArray<V> &val, F writeCb) {
     write(stream, val.size);
     for(int i = 0; i < val.size; i++) {
-      int rcode = writeCb(stream, val.data[i]);
+      int rcode = writeCb(stream, val.at(i));
       if(rcode != 0)
         return rcode;
     }

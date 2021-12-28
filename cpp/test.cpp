@@ -1,8 +1,9 @@
-#include "types.h"
+//#include "types.h"
 #include <iostream>
 #include <iomanip>
 #include <stdio.h>
 #include <type_traits>
+#include "newtypes.h"
 
 using namespace std;
 using namespace Bakelite;
@@ -37,7 +38,7 @@ int main() {
     false,
     {1, 2, 3, 4},
     "Hey",
-    {1, 2, 3 , 4, 5},
+    {1, 2, 3, 4, 5},
     { arrayVariable, 3 },
     (char *)"Hello World!",
     { (char **)stringList, 3}
