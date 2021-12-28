@@ -70,9 +70,10 @@ namespace Bakelite {
       size_t newPos = m_heapPos + bytes;
       if(newPos >= m_heapSize)
         return nullptr;
-      
+
+      char *data = &m_heap[m_heapPos];
       m_heapPos = newPos;
-      return &m_heap[newPos];
+      return data;
     }
 
   private:
@@ -156,7 +157,7 @@ namespace Bakelite {
     if(rcode != 0)
         return rcode;
 
-    val.data = (V*)stream.alloc(size);
+    val.data = (V*)stream.alloc(sizeof(V) * size);
     val.size = size;
 
     if(val.data == nullptr) {

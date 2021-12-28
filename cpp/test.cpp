@@ -24,6 +24,7 @@ int main() {
   BufferStream stream(data, 256, heap, 256);
 
   uint8_t arrayVariable[3] = {1, 2, 3};
+  const char *stringList[] = { "One", "Two", "Three" };
 
   TestStruct testStruct = {
     5,
@@ -38,16 +39,19 @@ int main() {
     "Hey",
     {1, 2, 3 , 4, 5},
     { arrayVariable, 3 },
-    (char *)"Hello World!"
+    (char *)"Hello World!",
+    { (char **)stringList, 3}
   };
-  testStruct.pack(stream);
+  int rcode = testStruct.pack(stream);
+  cout << "Pack: " << rcode << endl;
 
   cout << stream.pos() << endl;
   printHex(data, stream.pos());
 
   TestStruct t2;
   stream.seek(0);
-  t2.unpack(stream);
+  rcode = t2.unpack(stream);
+  cout << "Unpack: " << rcode << endl;
 
   cout
     << "int1: " << (int)t2.int1 << endl
@@ -66,5 +70,8 @@ int main() {
   printHex((const char *)t2.array, sizeof(t2.array));
   cout << "arrayVariable: ";
   printHex((const char *)t2.arrayVariable.data, t2.arrayVariable.size);
-  cout << "stringVariable: '" << t2.stringVariable << "'" << endl; 
+  cout << "stringVariable: '" << t2.stringVariable << "'" << endl;
+  for(int i = 0; i < t2.stringList.size; i++) {
+    cout << "stringList: '" << t2.stringList.data[i] << "'" << endl;
+  }
 }
