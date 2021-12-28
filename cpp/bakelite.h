@@ -123,11 +123,15 @@ namespace Bakelite {
 
   template <class T>
   int writeString(T& stream, const char *val) {
+    if(val == nullptr) {
+      return write(stream, (uint8_t)0);
+    }
+
     uint8_t len = strlen(val);
-    int rcode = stream.write((const char *)&len, 1);
+    int rcode = stream.write(val, len);
     if(rcode != 0)
       return rcode;
-    return stream.write(val, len);
+    return write(stream, (uint8_t)0);
   }
 
   template <class T, class V>

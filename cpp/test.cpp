@@ -37,7 +37,8 @@ int main() {
     {1, 2, 3, 4},
     "Hey",
     {1, 2, 3 , 4, 5},
-    { arrayVariable, 3 }
+    { arrayVariable, 3 },
+    (char *)"Hello World!"
   };
   testStruct.pack(stream);
 
@@ -65,4 +66,5 @@ int main() {
   printHex((const char *)t2.array, sizeof(t2.array));
   cout << "arrayVariable: ";
   printHex((const char *)t2.arrayVariable.data, t2.arrayVariable.size);
+  cout << "stringVariable: '" << t2.stringVariable << "'" << endl; 
 }

@@ -17,7 +17,7 @@ struct TestStruct {
   char str[5];
   uint16_t array[5]; 
   Bakelite::SizedArray<uint8_t> arrayVariable;
-  char *stringVariable;
+  char *stringVariable = nullptr;
 
   template<class T>
   int pack(T &stream) const {
@@ -62,6 +62,9 @@ struct TestStruct {
     });
     if(rcode != 0)
       return rcode;
+    rcode = writeString(stream, stringVariable);
+    if(rcode != 0)
+      return rcode;
     return 0;
   }
 
@@ -104,6 +107,9 @@ struct TestStruct {
     rcode = readArray(stream, arrayVariable, [](T &stream, uint8_t &val) {
       return read(stream, val);
     });
+    rcode = readString(stream, stringVariable);
+    if(rcode != 0)
+      return rcode;
     return 0;
   }
 };
