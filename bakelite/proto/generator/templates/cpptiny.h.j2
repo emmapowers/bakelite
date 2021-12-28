@@ -1,0 +1,53 @@
+#pragma once
+
+#include "bakelite.h"
+
+% for enum in enums
+% if enum.comment
+// {{ enum.comment }}
+% endif
+enum class {{ enum.name }}: {{map_type(enum.type)}} {
+  % for value in enum.values:
+  % if value.comment
+  // {{ value.comment }}
+  % endif
+  {{ value.name }} = {{ value.value }};
+  % endfor
+};
+{{""}}
+{{""}}
+% endfor
+
+% for struct in structs
+% if struct.comment
+// {{ struct.comment }}
+% endif
+struct {{ struct.name }} {
+  % for member in struct.members:
+  % if member.comment
+  // {{ member.comment }}
+  % endif
+  {{map_type_member(member)}} {{ member.name }}{{-size_postfix(member)-}}{{-array_postfix(member)-}} {{- ' = ' + member.value if member.value -}};
+  % endfor
+  {{""}}
+  template<class T>
+  int pack(T &stream) const {
+    int rcode = 0;
+    % for member in struct.members:
+    {{write_type(member)}}
+    %- endfor
+    return rcode;
+  }
+  {{""}}
+  template<class T>
+  int unpack(T &stream) {
+    int rcode = 0;
+    % for member in struct.members:
+    {{read_type(member)}}
+    %- endfor
+    return rcode;
+  }
+};
+{{""}}
+{{""}}
+% endfor
