@@ -41,16 +41,16 @@ def _map_type(t: ProtoType):
   
   return type_name
 
-def _map_type_member(member: ProtoStructMember, use_pointer=False) -> str:
+def _map_type_member(member: ProtoStructMember) -> str:
   type_name = _map_type(member.type)
   
   if member.type.name == "bytes" and member.type.size == 0 and member.arraySize == 0:
     return f"Bakelite::SizedArray<Bakelite::SizedArray<{type_name}> >"
   elif member.type.name == "bytes" and member.type.size == 0:
     return f"Bakelite::SizedArray<{type_name}>"
-  if member.type.name == "string" and (member.type.size == 0 or use_pointer == True) and member.arraySize == 0:
+  elif member.type.name == "string" and (member.type.size == 0) and member.arraySize == 0:
     return f"Bakelite::SizedArray<{type_name}*>"
-  if member.type.name == "string" and (member.type.size == 0 or use_pointer == True):
+  elif member.type.name == "string" and (member.type.size == 0):
     return f"{type_name}*"
   elif member.arraySize == 0:
     return f"Bakelite::SizedArray<{type_name}>"
@@ -88,13 +88,13 @@ def render(enums: List[ProtoEnum],
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      tmp_member_type = _map_type_member(tmp_member, use_pointer=True)
+      tmp_member_type = _map_type_member(tmp_member)
       return (
-f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, {tmp_member_type} const &val) {{
+f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, const auto &val) {{
       return {_write_type(tmp_member)}
     }});""")
     elif member.type.name in enums_types:
-      underlying_type = _map_type(enums_types[member.type.name])
+      underlying_type = _map_type(enums_types[member.type.name].type)
       return f"write(stream, ({underlying_type}){member.name});"
     elif member.type.name in structs_types:
       return f"{member.name}.pack(stream);"
@@ -119,14 +119,14 @@ f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, {tmp_member_type} 
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      tmp_member_type = _map_type_member(tmp_member, use_pointer=True)
+      tmp_member_type = _map_type_member(tmp_member)
       return (
-f"""readArray(stream, {member.name}{size_arg}, [](T &stream, {tmp_member_type} &val) {{
+f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
       return {_read_type(tmp_member)}
     }});""")
     elif member.type.name in enums_types:
-      underlying_type = _map_type(enums_types[member.type.name])
-      return f"read(stream, ({underlying_type}){member.name});"
+      underlying_type = _map_type(enums_types[member.type.name].type)
+      return f"read(stream, ({underlying_type}&){member.name});"
     elif member.type.name in structs_types:
       return f"{member.name}.unpack(stream);"
     elif member.type.name in prim_types and member.type.name != "bytes" and member.type.name != "string":

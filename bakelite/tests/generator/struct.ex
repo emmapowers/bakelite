@@ -67,4 +67,5 @@ struct VariableLength {
   b: string[]
   c: uint8[]
   d: bytes[][]
+  e: string[][]
 }

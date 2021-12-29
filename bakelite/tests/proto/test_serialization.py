@@ -191,7 +191,7 @@ def describe_serialization():
             ]
         )
         test_struct.pack(stream)
-        expect(stream.getvalue()) == b'\x02\x03\x01\x7f@abc\x00def\x00ghi\x00'
+        expect(stream.getvalue()) == bytes.fromhex('0203017f40616263006465660067686900')
         stream.seek(0)
         expect(ArrayStruct.unpack(stream)) == ArrayStruct(
             a=[Direction.Left, Direction.Right, Direction.Down],

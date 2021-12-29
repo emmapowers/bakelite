@@ -122,6 +122,12 @@ namespace Bakelite {
   }
 
   template <class T>
+  int writeBytes(T& stream, const SizedArray<uint8_t> &val) {
+    int rcode = write(stream, val.size);
+    return stream.write((const char *)val.data, val.size);
+  }
+
+  template <class T>
   int writeString(T& stream, const char *val, int size) {
     return stream.write(val, size);
   }
@@ -179,6 +185,23 @@ namespace Bakelite {
   template <class T>
   int readBytes(T& stream, uint8_t *val, int size) {
     return stream.read((char *)val, size);
+  }
+
+  template <class T, typename S = uint8_t>
+  int readBytes(T& stream, SizedArray<uint8_t, S> &val) {
+    S size = 0;
+    int rcode = read(stream, size);
+    if(rcode != 0)
+        return rcode;
+
+    val.data = (uint8_t*)stream.alloc(size);
+    val.size = size;
+
+    if(val.data == nullptr) {
+      return -1;
+    }
+
+    return stream.read((char *)val.data, val.size);
   }
 
   template <class T>
