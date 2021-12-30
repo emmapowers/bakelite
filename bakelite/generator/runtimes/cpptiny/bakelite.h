@@ -1,4 +1,12 @@
-#pragma once
+/*
+ * The code in this file is Copyright (c) Emma Powers 2021,
+ * unless otherwise marked. This software is made available
+ * under the terms of the MIT License, which can be found at the
+ * bottom of this file.
+*/
+
+#ifndef __BAKELITE_H__
+#define __BAKELITE_H__
 
 #include <cstdint>
 #include <limits>
@@ -240,97 +248,260 @@ namespace Bakelite {
     }
   };
 
-  // abcd0efg
-  // 1bcd0efg a 0
-  // 2acd0efg b 1
-  // 3abd0efg c 2
-  // 4abc0efg d 3
-  // 5abcd1fg e 4
-  // 5abcd2eg f 5
-  // 5abcd3ef g 6
-  // 5abcd3efg ! 7
-  // 5abcd3efg0 ! 8
+  /***************
+   * The below COBS function are Copyright (c) 2010 Craig McQueen
+   * And licensed under the MIT license, which can be found at the end of this file.
+   * 
+   * Source: https://github.com/cmcqueen/cobs-c
+   * Commit: f4b812953e19bcece1a994d33f370652dba2bf1b 
+   ***************/ 
 
-  void _pushStack(char **stackPtr, char data) {
-    **stackPtr = data;
-    (*stackPtr)++;
-  }
+  #define COBS_ENCODE_DST_BUF_LEN_MAX(SRC_LEN)            ((SRC_LEN) + (((SRC_LEN) + 253u)/254u))
+  #define COBS_DECODE_DST_BUF_LEN_MAX(SRC_LEN)            (((SRC_LEN) == 0) ? 0u : ((SRC_LEN) - 1u))
+  #define COBS_ENCODE_SRC_OFFSET(SRC_LEN)                 (((SRC_LEN) + 253u)/254u)
 
-  char _popStack(char **stackPtr) {
-    (*stackPtr)--;
-    return **stackPtr;
-  }
+  typedef enum
+  {
+      COBS_ENCODE_OK                  = 0x00,
+      COBS_ENCODE_NULL_POINTER        = 0x01,
+      COBS_ENCODE_OUT_BUFFER_OVERFLOW = 0x02
+  } cobs_encode_status;
 
-  template <class T = CrcNoop>
-  size_t cobsEncode(char *buffer, size_t bufferSize, size_t dataLength) {
-    T crc;
-    size_t overhead = ((dataLength/255)+1);
-    assert(bufferSize >= dataLength + overhead);
-    char *lastZero = buffer;
-    uint8_t blockSize = 1;
-    char *pos = buffer;
-    // Use the end of the buffer as temporary storage
-    char *stackPtr = buffer + (bufferSize - overhead);
+  typedef struct
+  {
+      size_t              out_len;
+      int                 status;
+  } cobs_encode_result;
 
-    for(size_t size = dataLength; size--;) {
-      char curChar = *pos;
-      printf("%02x Pos %lu %lu\n", curChar, pos - buffer, size);
 
-      if (curChar != 0) {
-        *pos = _popStack(&stackPtr);
-        _pushStack(&stackPtr, curChar);
-        blockSize++;
-      }
+  typedef enum
+  {
+      COBS_DECODE_OK                  = 0x00,
+      COBS_DECODE_NULL_POINTER        = 0x01,
+      COBS_DECODE_OUT_BUFFER_OVERFLOW = 0x02,
+      COBS_DECODE_ZERO_BYTE_IN_INPUT  = 0x04,
+      COBS_DECODE_INPUT_TOO_SHORT     = 0x08
+  } cobs_decode_status;
 
-      if(curChar == 0) {
-        *pos = _popStack(&stackPtr);
-        pos++;
-        curChar = *pos;
-        _pushStack(&stackPtr, curChar);
-        *lastZero = blockSize;
-        lastZero = pos;
-        blockSize = 1;
-      }
-      pos++;
-    };
-    
-    printf("END %02x\n", *pos);
-    //*pos = _popStack(&stackPtr);
-    //pos++;
-    *pos = 0;
-    *lastZero = blockSize;
+  typedef struct
+  {
+      size_t              out_len;
+      int                 status;
+  } cobs_decode_result;
 
-    return pos - buffer;
-  }
+  /* COBS-encode a string of input bytes.
+  *
+  * dst_buf_ptr:    The buffer into which the result will be written
+  * dst_buf_len:    Length of the buffer into which the result will be written
+  * src_ptr:        The byte string to be encoded
+  * src_len         Length of the byte string to be encoded
+  *
+  * returns:        A struct containing the success status of the encoding
+  *                 operation and the length of the result (that was written to
+  *                 dst_buf_ptr)
+  */
+  cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+                                 const uint8_t *src_ptr, size_t src_len)
+  {
+    cobs_encode_result result = {0, COBS_ENCODE_OK};
+    const uint8_t *src_read_ptr = src_ptr;
+    const uint8_t *src_end_ptr = src_read_ptr + src_len;
+    uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+    uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
+    uint8_t *dst_code_write_ptr = dst_buf_ptr;
+    uint8_t *dst_write_ptr = dst_code_write_ptr + 1;
+    uint8_t src_byte = 0;
+    uint8_t search_len = 1;
 
-  template <class T = CrcNoop>
-  size_t cobsDecode(char *buffer, size_t length) {
-    T crc;
-    size_t overhead = 1;
-    uint8_t nextZero = buffer[0];
-    int i;
+    /* First, do a NULL pointer check and return immediately if it fails. */
+    if ((dst_buf_ptr == NULL) || (src_ptr == NULL))
+    {
+      result.status = COBS_ENCODE_NULL_POINTER;
+      return result;
+    }
 
-    for(i = 1; i < length; i++) {
-      if(buffer[i] == 0)
-        break;
-      
-      if(nextZero == 1) {
-        size_t lastZero = nextZero;
-        nextZero = buffer[i];
-        printf("nextZero: %02x %lu %lu\n", nextZero, i, overhead);
-        buffer[i - overhead] = 0;
-
-        if(lastZero == 0xff) {
-          overhead++;
+    if (src_len != 0)
+    {
+      /* Iterate over the source bytes */
+      for (;;)
+      {
+        /* Check for running out of output buffer space */
+        if (dst_write_ptr >= dst_buf_end_ptr)
+        {
+          result.status |= COBS_ENCODE_OUT_BUFFER_OVERFLOW;
+          break;
         }
-      }
-      else {
-        buffer[i - overhead] = buffer[i];
-        nextZero--;
+
+        src_byte = *src_read_ptr++;
+        if (src_byte == 0)
+        {
+          /* We found a zero byte */
+          *dst_code_write_ptr = search_len;
+          dst_code_write_ptr = dst_write_ptr++;
+          search_len = 1;
+          if (src_read_ptr >= src_end_ptr)
+          {
+            break;
+          }
+        }
+        else
+        {
+          /* Copy the non-zero byte to the destination buffer */
+          *dst_write_ptr++ = src_byte;
+          search_len++;
+          if (src_read_ptr >= src_end_ptr)
+          {
+            break;
+          }
+          if (search_len == 0xFF)
+          {
+            /* We have a long string of non-zero bytes, so we need
+                     * to write out a length code of 0xFF. */
+            *dst_code_write_ptr = search_len;
+            dst_code_write_ptr = dst_write_ptr++;
+            search_len = 1;
+          }
+        }
       }
     }
 
-    return i - overhead;
+    /* We've reached the end of the source data (or possibly run out of output buffer)
+     * Finalise the remaining output. In particular, write the code (length) byte.
+     * Update the pointer to calculate the final output length.
+     */
+    if (dst_code_write_ptr >= dst_buf_end_ptr)
+    {
+      /* We've run out of output buffer to write the code byte. */
+      result.status |= COBS_ENCODE_OUT_BUFFER_OVERFLOW;
+      dst_write_ptr = dst_buf_end_ptr;
+    }
+    else
+    {
+      /* Write the last code (length) byte. */
+      *dst_code_write_ptr = search_len;
+    }
+
+    /* Calculate the output length, from the value of dst_code_write_ptr */
+    result.out_len = dst_write_ptr - dst_buf_start_ptr;
+
+    return result;
+  }
+
+  /* Decode a COBS byte string.
+  *
+  * dst_buf_ptr:    The buffer into which the result will be written
+  * dst_buf_len:    Length of the buffer into which the result will be written
+  * src_ptr:        The byte string to be decoded
+  * src_len         Length of the byte string to be decoded
+  *
+  * returns:        A struct containing the success status of the decoding
+  *                 operation and the length of the result (that was written to
+  *                 dst_buf_ptr)
+  */
+  cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+                                 const uint8_t *src_ptr, size_t src_len)
+  {
+    cobs_decode_result result = {0, COBS_DECODE_OK};
+    const uint8_t *src_read_ptr = src_ptr;
+    const uint8_t *src_end_ptr = src_read_ptr + src_len;
+    uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+    uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
+    uint8_t *dst_write_ptr = dst_buf_ptr;
+    size_t remaining_bytes;
+    uint8_t src_byte;
+    uint8_t i;
+    uint8_t len_code;
+
+    /* First, do a NULL pointer check and return immediately if it fails. */
+    if ((dst_buf_ptr == NULL) || (src_ptr == NULL))
+    {
+      result.status = COBS_DECODE_NULL_POINTER;
+      return result;
+    }
+
+    if (src_len != 0)
+    {
+      for (;;)
+      {
+        len_code = *src_read_ptr++;
+        if (len_code == 0)
+        {
+          result.status |= COBS_DECODE_ZERO_BYTE_IN_INPUT;
+          break;
+        }
+        len_code--;
+
+        /* Check length code against remaining input bytes */
+        remaining_bytes = src_end_ptr - src_read_ptr;
+        if (len_code > remaining_bytes)
+        {
+          result.status |= COBS_DECODE_INPUT_TOO_SHORT;
+          len_code = remaining_bytes;
+        }
+
+        /* Check length code against remaining output buffer space */
+        remaining_bytes = dst_buf_end_ptr - dst_write_ptr;
+        if (len_code > remaining_bytes)
+        {
+          result.status |= COBS_DECODE_OUT_BUFFER_OVERFLOW;
+          len_code = remaining_bytes;
+        }
+
+        for (i = len_code; i != 0; i--)
+        {
+          src_byte = *src_read_ptr++;
+          if (src_byte == 0)
+          {
+            result.status |= COBS_DECODE_ZERO_BYTE_IN_INPUT;
+          }
+          *dst_write_ptr++ = src_byte;
+        }
+
+        if (src_read_ptr >= src_end_ptr)
+        {
+          break;
+        }
+
+        /* Add a zero to the end */
+        if (len_code != 0xFE)
+        {
+          if (dst_write_ptr >= dst_buf_end_ptr)
+          {
+            result.status |= COBS_DECODE_OUT_BUFFER_OVERFLOW;
+            break;
+          }
+          *dst_write_ptr++ = 0;
+        }
+      }
+    }
+
+    result.out_len = dst_write_ptr - dst_buf_start_ptr;
+
+    return result;
   }
 }
 
+/* 
+The MIT License
+---------------
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. 
+*/
+
+#endif // __BAKELITE_H__

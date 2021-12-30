@@ -24,7 +24,7 @@ string hexString(const char *data, int length, bool space = false) {
 }
 
 void printHex(const char *data, int length) {
-  cout << hexString(data, length, true) << endl;
+  cout << hexString(data, length, false) << endl;
 }
 
 
@@ -234,27 +234,25 @@ TEST_CASE("struct with variable types") {
   CHECK(string(t2.e.data[2]) == "ghi");
 }
 
-// TEST_CASE("encode frame") {
-//   char buffer[256];
-//   memset(buffer, 0xFF, 256);
-//   // memcpy(buffer, "\x11\x22\x33\x44\x00\x55\x66\x77", 10);
-//   // memcpy(buffer, "\x11\x22\x00\x33", 4);
-//   //const char input[] = "\x00";
-//   const char input[] = "\x00\x00";
-//   //const char input[] = "\x11\x22\x00\x33";
-//   memcpy(buffer, input, sizeof(input)-1);
+TEST_CASE("encode frame") {
+  const int buffSize = 259;
+  char buffer[buffSize + COBS_ENCODE_SRC_OFFSET(buffSize)];
+  memset(buffer, 0xFF, sizeof(buffer));
+  char *srcPtr = buffer + COBS_ENCODE_SRC_OFFSET(buffSize);
+  const char srcData[] = "\x00\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\xEE\x00\xAA\xBB";
+  memcpy(srcPtr, srcData, sizeof(srcData));
 
-//   cobsEncode(buffer, 256, sizeof(input)-1);
-//   printHex(buffer, 16);
-// }
+  auto result = cobs_encode((uint8_t *)buffer, sizeof(buffer), (const uint8_t *)srcPtr, sizeof(srcData)-1);
+  CHECK(result.status == 0);
+  CHECK(result.out_len == 260);
+  
+  memset(buffer+result.out_len, 0xFF, sizeof(buffer) - result.out_len);
+  CHECK(hexString(buffer, sizeof(buffer)) == "01ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee0103aabbff");
+}
 
 TEST_CASE("decode frame") {
   char buffer[260];
   memset(buffer, 0xFF, sizeof(buffer));
-  //const char input[] = "\x03\x11\x22\x02\x33\x00";
-  //const char input[] = "\x01\x01\x01\x00";
-  //const char input[] = "\x02\x11\x01\x01\x01\x00";
-  //memcpy(buffer, input, sizeof(input)-1);
 
   buffer[0] = 0x01;
   buffer[1] = 0xFF;
@@ -262,11 +260,16 @@ TEST_CASE("decode frame") {
     buffer[i+2] = 0xEE;
   }
   buffer[256] = 0x01;
-  buffer[257] = 0x02;
+  buffer[257] = 0x03;
   buffer[258] = 0xaa;
-  buffer[259] = 0;
+  buffer[259] = 0xbb;
 
-  size_t written = cobsDecode(buffer, sizeof(buffer));
-  memset(buffer+written, 0xFF ,sizeof(buffer) - written);
-  printHex(buffer, sizeof(buffer));
+  auto result = cobs_decode((uint8_t *)buffer, sizeof(buffer), (const uint8_t *)buffer, sizeof(buffer));
+  CHECK(result.status == 0);
+  CHECK(result.out_len == 258);
+  
+  memset(buffer+result.out_len, 0xFF, sizeof(buffer) - result.out_len);
+  //printHex(buffer, sizeof(buffer));
+
+  CHECK(hexString(buffer, sizeof(buffer)) == "00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00aabbffff");
 }
