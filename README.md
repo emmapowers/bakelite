@@ -5,27 +5,32 @@ You define your protocol defenition, and Bakelite will generate source code for 
 
 
 ## Features
-* Supported Languages
+* Supported languages:
   * C++
   * Python
+* Protocol supports:
+  * Enums, Structs, strings, binary data, integers and floating point numbers of varying widths.
+  * Variable length strings and binary data.
+* Framing (COBS)
+* Error checking (CRC 8/16/32)
 
-# Setup
-
-## Requirements
-
-* Python 3.8+
-
-## Installation
-
-Install it via pip.
-
-```text
-$ pip install bakelite
-```
+Documentation hasn't been written yet, but a more formal overview of the protocol can be found
+[here](./docs/protocol.md).
 
 # Usage
 
-After installation, the package can imported:
+## Installation
+
+Bakelite requires Python 3.8 or above.
+
+Install it via pip.
+```bash
+$ pip install bakelite
+```
+
+## Code Generation
+
+After installation, a new CLI tool `bakelite` is now available.
 
 Craete a protocol defenition file `my_proto.bakelite`.
 ```text
