@@ -235,8 +235,21 @@ namespace Bakelite {
     return -1;
   }
 
+  // Pre-declarations of COBS functions
+  struct cobs_encode_result;
+  struct cobs_decode_result
+  {
+      size_t              out_len;
+      int                 status;
+  };
+  cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+                                 const uint8_t *src_ptr, size_t src_len);
+  cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+                                 const uint8_t *src_ptr, size_t src_len);
+  
   class CrcNoop {
-    size_t length() const {
+  public:
+    constexpr static size_t size() {
       return 0;
     }
 
@@ -244,8 +257,134 @@ namespace Bakelite {
       return 0;
     }
 
-    void update(const char *c) {
+    void update(const uint8_t *c, size_t length) {
     }
+  };
+
+  enum class CobsDecodeState {
+    Decoded,
+    NotReady,
+    DecodeFailure,
+    CrcFailure,
+    BufferOverrun,
+  };
+
+  template <class C, size_t BufferSize>
+  class CobsFramer {
+  public:
+    struct Result {
+      int status;
+      size_t length;
+      uint8_t *data;
+    };
+
+    struct DecodeResult {
+      CobsDecodeState status;
+      size_t length;
+      uint8_t *data;
+    };
+
+    uint8_t *readBuffer() {
+      return m_readBuffer;
+    }
+
+    size_t readBufferSize() {
+      return sizeof(m_readBuffer);
+    }
+
+    uint8_t *writeBuffer() {
+      return m_writePtr;
+    }
+
+    size_t writeBufferSize() {
+      return sizeof(m_writeBuffer) - overhead(BufferSize);
+    }
+
+    Result encodeFrame(const uint8_t *data, size_t length) {
+      assert(data);
+      assert(length <= BufferSize);
+
+      memcpy(m_writePtr, data, length);
+      return encodeFrame(length);
+    }
+    
+    Result encodeFrame(size_t length) {
+      assert(length <= BufferSize);
+
+      if(C::size() > 0) {
+        m_crc.update(m_writePtr, length);
+        auto crc = m_crc.value();
+        memcpy(m_writePtr + length, (void *)&crc, sizeof(crc));
+      }
+
+      auto result = cobs_encode(m_writeBuffer, sizeof(m_writeBuffer),
+                                m_writePtr, length+C::size());
+      if(result.status != 0) {
+        return { 1, 0, nullptr };
+      }
+
+      m_writeBuffer[result.out_len] = 0;
+
+      return { 0, result.out_len + 1, m_writeBuffer };
+    }
+
+    DecodeResult readFrameByte(uint8_t byte) {
+      *m_readPos = byte;
+      size_t length = (m_readPos - m_readBuffer) + 1;
+      if(byte == 0) {
+        m_readPos = m_readBuffer;
+        return decodeFrame(length);
+      }
+      else if(length == sizeof(m_readBuffer)) {
+        m_readPos = m_readBuffer;
+        return { CobsDecodeState::BufferOverrun, 0, nullptr };
+      }
+
+      m_readPos++;
+      return { CobsDecodeState::NotReady, 0, nullptr };
+    }
+
+  private:
+    DecodeResult decodeFrame(size_t length) {
+      length--; // Discard null byte
+
+      auto result = cobs_decode((uint8_t *)m_readBuffer, sizeof(m_readBuffer), (const uint8_t *)m_readBuffer, length);
+      if(result.status != 0) {
+        printf("Status: %i", result.status);
+        return { CobsDecodeState::DecodeFailure, 0, nullptr };
+      }
+
+      // length of the decoded data without CRC
+      length = result.out_len - C::size();
+
+      if(C::size() > 0) {
+        C crc;
+
+        // Get the CRC from the end of the frame
+        auto crc_val = crc.value();
+        memcpy(&crc_val, m_readBuffer + length, sizeof(crc_val));
+
+        crc.update(m_readBuffer, length);
+        if(crc_val != crc.value()) {
+          return { CobsDecodeState::CrcFailure, 0, nullptr };
+        }
+      }
+
+      return { CobsDecodeState::Decoded, length, m_readBuffer };
+    }
+
+    constexpr static size_t cobsOverhead(size_t bufferSize) {
+      return (bufferSize + 253u)/254u;
+    }
+    constexpr static size_t overhead(size_t bufferSize) {
+      return cobsOverhead(BufferSize + C::size()) + C::size() + 1;
+    }
+
+    C m_crc;
+    uint8_t m_readBuffer[BufferSize + overhead(BufferSize)];
+    uint8_t *m_readPos = m_readBuffer;
+    uint8_t m_writeBuffer[BufferSize + overhead(BufferSize)];
+    uint8_t *m_writePtr = m_writeBuffer + cobsOverhead(BufferSize);
   };
 
   /***************
@@ -267,12 +406,11 @@ namespace Bakelite {
       COBS_ENCODE_OUT_BUFFER_OVERFLOW = 0x02
   } cobs_encode_status;
 
-  typedef struct
+  struct cobs_encode_result
   {
       size_t              out_len;
       int                 status;
-  } cobs_encode_result;
-
+  };
 
   typedef enum
   {
@@ -282,12 +420,6 @@ namespace Bakelite {
       COBS_DECODE_ZERO_BYTE_IN_INPUT  = 0x04,
       COBS_DECODE_INPUT_TOO_SHORT     = 0x08
   } cobs_decode_status;
-
-  typedef struct
-  {
-      size_t              out_len;
-      int                 status;
-  } cobs_decode_result;
 
   /* COBS-encode a string of input bytes.
   *
