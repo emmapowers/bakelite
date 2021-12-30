@@ -1,3 +1,4 @@
+import os
 from jinja2 import Environment, PackageLoader
 from dataclasses import asdict
 from copy import copy
@@ -157,3 +158,7 @@ f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
     write_type=_write_type,
     read_type=_read_type,
     to_camel_case=to_camel_case)
+
+def runtime() -> str:
+  with open(os.path.join(os.path.dirname(__file__), 'runtimes', 'cpptiny', 'bakelite.h'), "r", encoding='utf-8') as f:
+    return f.read()

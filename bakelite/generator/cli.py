@@ -6,11 +6,15 @@ import bakelite.generator.python as python
 import bakelite.generator.cpptiny as cpptiny
 from bakelite.generator import parse
 
-@click.command()
+@click.group()
+def cli():
+  pass
+
+@cli.command()
 @click.option('--language', '-l', required=True)
 @click.option('--input', '-i', required=True)
 @click.option('--output', '-o', required=True)
-def main(language: str, input: str, output: str):
+def gen(language: str, input: str, output: str):
   render_func = None
 
   if language == "python":
@@ -29,8 +33,26 @@ def main(language: str, input: str, output: str):
 
   with open(output, 'w', encoding='utf-8') as f:
     f.write(generated_file)
-    
 
+@cli.command()
+@click.option('--language', '-l', required=True)
+@click.option('--output', '-o', required=True)
+def runtime(language: str, output: str):
+  runtime_func = None
+
+  if language == "cpptiny":
+    runtime_func = cpptiny.runtime
+  else:
+    print(f"Unkown language: {language}")
+    return 1
+
+  generated_file = runtime_func()
+
+  with open(output, 'w', encoding='utf-8') as f:
+    f.write(generated_file)  
+
+def main():
+  cli()
 
 if __name__ == "__main__":
   main()
