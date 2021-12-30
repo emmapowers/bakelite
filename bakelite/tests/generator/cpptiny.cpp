@@ -8,20 +8,23 @@
 using namespace std;
 using namespace Bakelite;
 
-string hexString(const char *data, int length) {
+string hexString(const char *data, int length, bool space = false) {
   stringstream ss;
   
   ss << std::hex;
 
   for(int i = 0; i < length; i++) {
     ss << std::setw(2) << std::setfill('0') << (unsigned int)(data[i] & 0xffu);
+    if(space) {
+      ss << ' ';
+    }
   }
   
   return ss.str();
 }
 
 void printHex(const char *data, int length) {
-  cout << hexString(data, length) << endl;
+  cout << hexString(data, length, true) << endl;
 }
 
 
@@ -229,4 +232,41 @@ TEST_CASE("struct with variable types") {
   CHECK(string(t2.e.data[0]) == "abc");
   CHECK(string(t2.e.data[1]) == "def");
   CHECK(string(t2.e.data[2]) == "ghi");
+}
+
+// TEST_CASE("encode frame") {
+//   char buffer[256];
+//   memset(buffer, 0xFF, 256);
+//   // memcpy(buffer, "\x11\x22\x33\x44\x00\x55\x66\x77", 10);
+//   // memcpy(buffer, "\x11\x22\x00\x33", 4);
+//   //const char input[] = "\x00";
+//   const char input[] = "\x00\x00";
+//   //const char input[] = "\x11\x22\x00\x33";
+//   memcpy(buffer, input, sizeof(input)-1);
+
+//   cobsEncode(buffer, 256, sizeof(input)-1);
+//   printHex(buffer, 16);
+// }
+
+TEST_CASE("decode frame") {
+  char buffer[260];
+  memset(buffer, 0xFF, sizeof(buffer));
+  //const char input[] = "\x03\x11\x22\x02\x33\x00";
+  //const char input[] = "\x01\x01\x01\x00";
+  //const char input[] = "\x02\x11\x01\x01\x01\x00";
+  //memcpy(buffer, input, sizeof(input)-1);
+
+  buffer[0] = 0x01;
+  buffer[1] = 0xFF;
+  for(int i = 0; i < 254; i++) {
+    buffer[i+2] = 0xEE;
+  }
+  buffer[256] = 0x01;
+  buffer[257] = 0x02;
+  buffer[258] = 0xaa;
+  buffer[259] = 0;
+
+  size_t written = cobsDecode(buffer, sizeof(buffer));
+  memset(buffer+written, 0xFF ,sizeof(buffer) - written);
+  printHex(buffer, sizeof(buffer));
 }

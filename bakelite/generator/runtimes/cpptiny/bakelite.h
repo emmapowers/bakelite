@@ -226,5 +226,111 @@ namespace Bakelite {
 
     return -1;
   }
+
+  class CrcNoop {
+    size_t length() const {
+      return 0;
+    }
+
+    int value() const {
+      return 0;
+    }
+
+    void update(const char *c) {
+    }
+  };
+
+  // abcd0efg
+  // 1bcd0efg a 0
+  // 2acd0efg b 1
+  // 3abd0efg c 2
+  // 4abc0efg d 3
+  // 5abcd1fg e 4
+  // 5abcd2eg f 5
+  // 5abcd3ef g 6
+  // 5abcd3efg ! 7
+  // 5abcd3efg0 ! 8
+
+  void _pushStack(char **stackPtr, char data) {
+    **stackPtr = data;
+    (*stackPtr)++;
+  }
+
+  char _popStack(char **stackPtr) {
+    (*stackPtr)--;
+    return **stackPtr;
+  }
+
+  template <class T = CrcNoop>
+  size_t cobsEncode(char *buffer, size_t bufferSize, size_t dataLength) {
+    T crc;
+    size_t overhead = ((dataLength/255)+1);
+    assert(bufferSize >= dataLength + overhead);
+    char *lastZero = buffer;
+    uint8_t blockSize = 1;
+    char *pos = buffer;
+    // Use the end of the buffer as temporary storage
+    char *stackPtr = buffer + (bufferSize - overhead);
+
+    for(size_t size = dataLength; size--;) {
+      char curChar = *pos;
+      printf("%02x Pos %lu %lu\n", curChar, pos - buffer, size);
+
+      if (curChar != 0) {
+        *pos = _popStack(&stackPtr);
+        _pushStack(&stackPtr, curChar);
+        blockSize++;
+      }
+
+      if(curChar == 0) {
+        *pos = _popStack(&stackPtr);
+        pos++;
+        curChar = *pos;
+        _pushStack(&stackPtr, curChar);
+        *lastZero = blockSize;
+        lastZero = pos;
+        blockSize = 1;
+      }
+      pos++;
+    };
+    
+    printf("END %02x\n", *pos);
+    //*pos = _popStack(&stackPtr);
+    //pos++;
+    *pos = 0;
+    *lastZero = blockSize;
+
+    return pos - buffer;
+  }
+
+  template <class T = CrcNoop>
+  size_t cobsDecode(char *buffer, size_t length) {
+    T crc;
+    size_t overhead = 1;
+    uint8_t nextZero = buffer[0];
+    int i;
+
+    for(i = 1; i < length; i++) {
+      if(buffer[i] == 0)
+        break;
+      
+      if(nextZero == 1) {
+        size_t lastZero = nextZero;
+        nextZero = buffer[i];
+        printf("nextZero: %02x %lu %lu\n", nextZero, i, overhead);
+        buffer[i - overhead] = 0;
+
+        if(lastZero == 0xff) {
+          overhead++;
+        }
+      }
+      else {
+        buffer[i - overhead] = buffer[i];
+        nextZero--;
+      }
+    }
+
+    return i - overhead;
+  }
 }
 
