@@ -2,7 +2,7 @@
 
 Bakelite is a utility that automates the tedious tasks involved in communicating with hardware.
 You define your protocol defenition, and Bakelite will generate source code for you.
-
+Common tasks such as framing and error detection are handled out of the box.
 
 ## Features
 * Supported languages:
@@ -17,6 +17,13 @@ You define your protocol defenition, and Bakelite will generate source code for 
 Documentation hasn't been written yet, but a more formal overview of the protocol can be found
 [here](./docs/protocol.md).
 
+## Status
+This project is in early development. The C++ implementation is currently WIP.
+The API and data format are not stable, and will change without notice.
+The package has not yet been published to pypi.
+If you'd like to try out an early version, see the [contributing](./CONTRIBUTING.md) guide for installation instructions.
+
+
 # Usage
 
 ## Installation
@@ -27,6 +34,8 @@ Install it via pip.
 ```bash
 $ pip install bakelite
 ```
+__This is for future reference, it hasn't been published to pypi yet.__
+If you'd like to try out an early version, see the [contributing](./CONTRIBUTING.md) guide.
 
 ## Code Generation
 
