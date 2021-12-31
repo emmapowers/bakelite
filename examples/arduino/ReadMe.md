@@ -2,7 +2,7 @@
 A simple example showing how to communicate with an Arduino from a Python script running on a PC. It demonstrates a very simple protocol, and how to use the protocol to talk to an Arduino over a serial port.
 
 __Requirements:__
-* Any Arduino board. (Tested with Uno and Nano)
+* Any Arduino board. (Tested with Uno, Nano, Leonardo)
 * The [Arduino IDE](https://www.arduino.cc/en/software)
 * Python 3.8+
 * make (optional)

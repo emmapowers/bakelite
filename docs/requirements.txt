@@ -1,0 +1,2 @@
+mkdocs==1.0.4
+Pygments @ file:///Users/brendan/Library/Caches/pypoetry/artifacts/8e/29/07/d251f03f5b9d803272c3bf568ea6a6f4590e07f46e0ea51e12a575938a/Pygments-2.11.0-py3-none-any.whl
