@@ -1,4 +1,3 @@
-from typing_extensions import Required
 import click
 from click.decorators import command
 
