@@ -41,8 +41,8 @@ namespace Bakelite {
 
     int write(const char *data, uint32_t length) {
       uint32_t endPos = m_pos + length;
-      if(endPos >= m_size) {
-        return -7;
+      if(endPos > m_size) {
+        return -1;
       }
 
       memcpy(m_buff+m_pos, data, length);
@@ -64,7 +64,7 @@ namespace Bakelite {
     }
 
     int seek(uint32_t pos) {
-      if(pos > m_size) {
+      if(pos >= m_size) {
         return -3;
       }
       else {
