@@ -15,7 +15,7 @@ Common tasks such as framing and error detection are handled out of the box.
 * Error checking (CRC 8/16/32)
 
 Documentation hasn't been written yet, but a more formal overview of the protocol can be found
-[here](./docs/protocol.md).
+[here](./docs/protocol.md), and examples can be found [here](./examples).
 
 ## Status
 This project is in early development. The C++ implementation is currently WIP.
