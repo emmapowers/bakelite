@@ -1,8 +1,8 @@
 [tool.poetry]
 
 name = "bakelite"
-version = "0.0"
-description = "bakelite project description"
+version = "0.1"
+description = "Bakelite is a utility that automates the tedious tasks involved in communicating with hardware. You define your protocol defenition, and Bakelite will generate source code for you. Common tasks such as framing and error detection are handled out of the box."
 
 license = "MIT"
 
@@ -18,12 +18,15 @@ keywords = [
 ]
 classifiers = [
     # TODO: update this list to match your application: https://pypi.org/pypi?%3Aaction=list_classifiers
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator"
 ]
 
 [tool.poetry.dependencies]
