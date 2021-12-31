@@ -145,6 +145,37 @@ f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
     else:
       raise RuntimeError(f"Unkown type {member.type.name}")
 
+  message_ids = []
+  framer = ""
+
+  if proto is not None:
+    message_ids = [( msg.name, msg.number ) for msg in proto.message_ids]
+    options = {option.name: option.value for option in proto.options}
+    crc = options.get("crc", "none").lower()
+    framing = options.get("framing", "").lower()
+    max_length = options.get("maxLength", None)
+
+    if(framing == ""):
+      raise RuntimeError("A frame type must be specified")
+
+    if(max_length is None):
+      raise RuntimeError("maxLength must be specified")
+
+    if(crc == "none"):
+      crc_type = "CrcNoop"
+    elif(crc == "crc8"):
+      crc_type = "Crc8"
+    elif(crc == "crc16"):
+      crc_type = "Crc16"
+    elif(crc == "crc32"):
+      crc_type = "Crc32"
+    else:
+      raise RuntimeError(f"Unkown CRC type {crc}")
+
+    if(framing == "cobs"):
+      framer = f"Bakelite::CobsFramer<Bakelite::{crc_type}, {max_length}>"
+    else:
+      raise RuntimeError(f"Unkown CRC type {crc}")
 
   return template.render(
     enums=enums,
@@ -157,7 +188,8 @@ f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
     size_postfix=_size_postfix,
     write_type=_write_type,
     read_type=_read_type,
-    to_camel_case=to_camel_case)
+    framer=framer,
+    message_ids=message_ids)
 
 def runtime() -> str:
   with open(os.path.join(os.path.dirname(__file__), 'runtimes', 'cpptiny', 'bakelite.h'), "r", encoding='utf-8') as f:

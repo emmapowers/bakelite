@@ -54,4 +54,81 @@ struct {{ struct.name }} {
 };
 {{""}}
 {{""}}
+
 % endfor
+
+% if proto
+template <class F = {{framer}}>
+class ProtocolBase {
+public:
+  using ReadFn  = int (*)();
+  using WriteFn = size_t (*)(const char *data, size_t length);
+
+  enum class Message {
+    NoMessage = -1,
+    % for id in message_ids:
+    {{id[0]}} = {{id[1]}},
+    % endfor
+  };
+
+  ProtocolBase(ReadFn read, WriteFn write): m_readFn(read), m_writeFn(write) {}
+
+  Message poll() {
+    int byte = (*m_readFn)();
+    if(byte < 0) {
+      return Message::NoMessage;
+    }
+
+    auto result = m_framer.readFrameByte((uint8_t)byte);
+    if(result.status == Bakelite::CobsDecodeState::Decoded) {
+      if(result.length == 0) {
+        return Message::NoMessage;
+      }
+      
+      m_receivedMessage = (Message)result.data[0];
+      m_receivedFrameLength = result.length - 1;
+      return m_receivedMessage;
+    }
+
+    return Message::NoMessage;
+  }
+
+  % for message in message_ids:
+  int send{{message[0]}}(const {{message[0]}} &val) {
+    Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
+    m_framer.writeBuffer()[0] = (uint8_t)Message::{{message[0]}};
+    val.pack(outStream);
+    auto result = m_framer.encodeFrame(sizeof(val));
+    
+    if(result.status != 0) {
+      return result.status;
+    }
+    
+    int ret = (*m_writeFn)(result.data, result.length);
+    return ret == result.length ? 0 : -1;
+  }
+  {{""}}
+  % endfor
+
+  % for message in message_ids:
+  int decode{{message[0]}}({{message[0]}} &val) {
+    assert(m_receivedMessage == Message::{{message[0]}});
+    Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
+    return val.unpack(stream);
+  }
+  {{""}}
+  % endfor
+
+private:
+  ReadFn m_readFn;
+  WriteFn m_writeFn;
+  F m_framer;
+
+  size_t m_receivedFrameLength = 0;
+  Message m_receivedMessage = Message::NoMessage;
+};
+
+using Protocol = ProtocolBase<>;
+{{""}}
+{{""}}
+% endif
