@@ -18,7 +18,7 @@ $ pip3 install bakelite pyserial
 ```
 
 The required source files have been pre-generated for this project.
-If you'd like to make changes to [proto.bakelite](./proto.bakelight), run:
+If you'd like to make changes to [proto.bakelite](./proto.bakelite), run:
 ```bash
 $ make
 ```
