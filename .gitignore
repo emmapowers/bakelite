@@ -47,5 +47,3 @@ Icon*
 .settings
 .DS_Store
 .vscode/
-test.py
-test.proto
