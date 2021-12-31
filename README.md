@@ -73,4 +73,5 @@ $ bakelite gen -l cpptiny -i my_proto.bakelite -o my_proto.h
 # Generate Python Bindings
 $ bakelite gen -l python -i my_proto.bakelite -o my_proto.py
 ```
-See the [Ardiuno Example](./examples/arduino) for a more complete example.
+
+A more full features example can be found [here](./examples/arduino).
