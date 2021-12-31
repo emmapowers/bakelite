@@ -84,8 +84,6 @@ class ProtocolBase:
     self._stream.write(frame)
 
   def poll(self) -> List[Any]:
-    command = None
-
     data = self._stream.read()
     self._framer.append_buffer(data)
 
