@@ -300,6 +300,48 @@ TEST_CASE("cobs framer decode") {
   CHECK(hexString((const char *)result.data, result.length) == "11223344");
 }
 
+TEST_CASE("cobs framer decode more bytes") {
+  CobsFramer<CrcNoop, 256> framer;
+  auto result = framer.readFrameByte(0x05);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x11);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x22);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x33);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x44);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x00);
+  CHECK(result.status == CobsDecodeState::Decoded);
+  CHECK(result.length == 4);
+  CHECK(hexString((const char *)result.data, result.length) == "11223344");
+
+  result = framer.readFrameByte(0x05);
+  CHECK(result.status == CobsDecodeState::NotReady);
+}
+
+TEST_CASE("cobs framer decode two null bytes") {
+  CobsFramer<CrcNoop, 256> framer;
+  auto result = framer.readFrameByte(0x05);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x11);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x22);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x33);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x44);
+  CHECK(result.status == CobsDecodeState::NotReady);
+  result = framer.readFrameByte(0x00);
+  CHECK(result.status == CobsDecodeState::Decoded);
+  CHECK(result.length == 4);
+  CHECK(hexString((const char *)result.data, result.length) == "11223344");
+
+  result = framer.readFrameByte(0x00);
+  CHECK(result.status == CobsDecodeState::DecodeFailure);
+}
+
 TEST_CASE("cobs buffer overrun") {
   CobsFramer<CrcNoop, 2> framer;
   auto result = framer.readFrameByte(0x05);

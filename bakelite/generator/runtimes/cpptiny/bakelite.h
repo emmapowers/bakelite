@@ -8,10 +8,13 @@
 #ifndef __BAKELITE_H__
 #define __BAKELITE_H__
 
-#include <cstdint>
-#include <limits>
+// Arduino doesn't have cstdint
+#if __has_include(<cstdint>)
+# include <cstdint>
+#endif
+
+#include <assert.h>
 #include <string.h>
-#include <stdio.h>
 
 namespace Bakelite {
   template <typename T, typename S = uint8_t>
@@ -38,7 +41,7 @@ namespace Bakelite {
 
     int write(const char *data, uint32_t length) {
       uint32_t endPos = m_pos + length;
-      if(endPos >= m_size) {
+      if(endPos > m_size) {
         return -1;
       }
 
@@ -50,8 +53,8 @@ namespace Bakelite {
 
     int read(char *data, uint32_t length) {
       uint32_t endPos = m_pos + length;
-      if(endPos >= m_size) {
-        return -1;
+      if(endPos > m_size) {
+        return -2;
       }
 
       memcpy(data, m_buff+m_pos, length);
@@ -62,7 +65,7 @@ namespace Bakelite {
 
     int seek(uint32_t pos) {
       if(pos >= m_size) {
-        return -1;
+        return -3;
       }
       else {
         m_pos = pos;
@@ -179,7 +182,7 @@ namespace Bakelite {
     val.size = size;
 
     if(val.data == nullptr) {
-      return -1;
+      return -4;
     }
 
     for(int i = 0; i < size; i++) {
@@ -206,7 +209,7 @@ namespace Bakelite {
     val.size = size;
 
     if(val.data == nullptr) {
-      return -1;
+      return -5;
     }
 
     return stream.read((char *)val.data, val.size);
@@ -232,7 +235,7 @@ namespace Bakelite {
       }
     } while((newByte = stream.alloc(1)) != nullptr);
 
-    return -1;
+    return -6;
   }
 
   // Pre-declarations of COBS functions
@@ -346,11 +349,14 @@ namespace Bakelite {
 
   private:
     DecodeResult decodeFrame(size_t length) {
+      if(length == 1) {
+        return { CobsDecodeState::DecodeFailure, 0, nullptr }; 
+      }
+
       length--; // Discard null byte
 
       auto result = cobs_decode((uint8_t *)m_readBuffer, sizeof(m_readBuffer), (const uint8_t *)m_readBuffer, length);
       if(result.status != 0) {
-        printf("Status: %i", result.status);
         return { CobsDecodeState::DecodeFailure, 0, nullptr };
       }
 
