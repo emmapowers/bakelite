@@ -71,6 +71,8 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
     stream.write(value)
     return
   elif(t.name == "string"):
+    if not isinstance(value, bytes):
+      raise SerializationError(f'string values must be encoded as bytes')
     if(len(value) >= t.size):
       raise SerializationError(f'value is {len(value)}, but must be no longer than {t.size}, with room for a null byte')
     #Pad the value with zeros
@@ -145,7 +147,7 @@ def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> None:
     return data
   elif(t.name == "string"):
     data = stream.read(t.size)
-    return data.rstrip(b'\00') # Strip null bytes from string
+    return data[:data.find(b'\00')] # Return characters up untill the null byte
   else:
     raise SerializationError(f"Unkown type: {t.name}")
 
