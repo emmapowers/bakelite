@@ -1,6 +1,7 @@
-from pkg_resources import get_distribution, DistributionNotFound
+from pkg_resources import DistributionNotFound, get_distribution
+
 
 try:
-    __version__ = get_distribution('bakelite').version
+  __version__ = get_distribution('bakelite').version
 except DistributionNotFound:
-    __version__ = '(local)'
+  __version__ = '(local)'

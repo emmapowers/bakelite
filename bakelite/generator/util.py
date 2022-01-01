@@ -1,4 +1,3 @@
-
 def to_camel_case(name, first_capital=True):
   next_upper = False
   result = ""
@@ -7,11 +6,11 @@ def to_camel_case(name, first_capital=True):
     if c == '_':
       next_upper = True
       continue
-    
+
     if next_upper:
       c = c.upper()
       next_upper = False
-    
+
     result += c
 
   if first_capital:

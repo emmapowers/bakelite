@@ -1,4 +1,4 @@
-name: Tests
+name: Lint
 on: push
 
 jobs:
@@ -12,13 +12,12 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
-          apt update && apt install -y build-essential
           python -m pip install --upgrade pip
           curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
           echo "$HOME/.poetry/bin" >> $GITHUB_PATH
           source $HOME/.poetry/env
           make install
-      - name: Run Tests
+      - name: Run Lint
         run: |
           source $HOME/.poetry/env
-          make test
+          make lint

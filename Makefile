@@ -16,21 +16,6 @@ VIRTUAL_ENV ?= $(shell poetry env info -p || echo .venv)
 .PHONY: all
 all: install
 
-.PHONY: ci
-ci: format check test mkdocs ## Run all tasks that determine CI status
-
-.PHONY: watch
-watch: install .clean-test ## Continuously run all CI tasks when files chanage
-	poetry run sniffer
-
-.PHONY: run ## Start the program
-run: install
-	poetry run python $(PACKAGE)/__main__.py
-
-.PHONY: ipython ## Launch an IPython session
-ipython: install
-	poetry run ipython --ipython-dir=notebooks
-
 # SYSTEM DEPENDENCIES #########################################################
 
 .PHONY: doctor
@@ -62,15 +47,15 @@ endif
 
 .PHONY: format
 format: install
-	poetry run isort $(PACKAGES) notebooks --recursive --apply
-	poetry run black $(PACKAGES) notebooks
+	poetry run autopep8 $(PACKAGES) -r -i
+	poetry run isort $(PACKAGES) --recursive --apply
+	# poetry run black $(PACKAGES)
 	@ echo
 
-.PHONY: check
-check: install format  ## Run formaters, linters, and static analysis
-ifdef CI
-	git diff --exit-code
-endif
+.PHONY: lint
+lint: install  ## Run formaters, linters, and static analysis
+	poetry run isort $(PACKAGES) --recursive
+	# poetry run black $(PACKAGES) --check
 	poetry run mypy $(PACKAGES) --config-file=.mypy.ini
 	poetry run pylint $(PACKAGES) --rcfile=.pylint.ini
 	poetry run pydocstyle $(PACKAGES) $(CONFIG)
