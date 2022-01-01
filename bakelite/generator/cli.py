@@ -1,13 +1,18 @@
-import click
-from click.decorators import command
+# pylint: disable=redefined-builtin
 
-import bakelite.generator.python as python
+import sys
+
+import click
+
 import bakelite.generator.cpptiny as cpptiny
+import bakelite.generator.python as python
 from bakelite.generator import parse
+
 
 @click.group()
 def cli():
   pass
+
 
 @cli.command()
 @click.option('--language', '-l', required=True)
@@ -22,7 +27,7 @@ def gen(language: str, input: str, output: str):
     render_func = cpptiny.render
   else:
     print(f"Unkown language: {language}")
-    return 1
+    sys.exit(1)
 
   with open(input, 'r', encoding='utf-8') as f:
     proto = f.read()
@@ -32,6 +37,7 @@ def gen(language: str, input: str, output: str):
 
   with open(output, 'w', encoding='utf-8') as f:
     f.write(generated_file)
+
 
 @cli.command()
 @click.option('--language', '-l', required=True)
@@ -43,15 +49,17 @@ def runtime(language: str, output: str):
     runtime_func = cpptiny.runtime
   else:
     print(f"Unkown language: {language}")
-    return 1
+    sys.exit(1)
 
   generated_file = runtime_func()
 
   with open(output, 'w', encoding='utf-8') as f:
-    f.write(generated_file)  
+    f.write(generated_file)
+
 
 def main():
   cli()
+
 
 if __name__ == "__main__":
   main()

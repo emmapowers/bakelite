@@ -1,11 +1,11 @@
 import os
-from jinja2 import Environment, PackageLoader
-from dataclasses import asdict
 from copy import copy
+from typing import List
+
+from jinja2 import Environment, PackageLoader
 
 from .types import *
-from typing import List
-from .util import to_camel_case
+
 
 env = Environment(
     loader=PackageLoader('bakelite.generator', 'templates'),
@@ -13,7 +13,7 @@ env = Environment(
     lstrip_blocks=True,
     keep_trailing_newline=True,
     line_comment_prefix='%%',
-    line_statement_prefix='%'
+    line_statement_prefix='%',
 )
 
 template = env.get_template('cpptiny.h.j2')
@@ -32,24 +32,30 @@ prim_types = {
     "float64": "double",
     "bytes": "uint8_t",
     "string": "char",
-  }
+}
+
 
 def _map_type(t: ProtoType):
   if t.name in prim_types:
     type_name = prim_types[t.name]
   else:
     type_name = t.name
-  
+
   return type_name
+
 
 def _map_type_member(member: ProtoStructMember) -> str:
   type_name = _map_type(member.type)
-  
+
   if member.type.name == "bytes" and member.type.size == 0 and member.arraySize == 0:
     return f"Bakelite::SizedArray<Bakelite::SizedArray<{type_name}> >"
   elif member.type.name == "bytes" and member.type.size == 0:
     return f"Bakelite::SizedArray<{type_name}>"
-  elif member.type.name == "string" and (member.type.size == 0) and member.arraySize == 0:
+  elif (
+      member.type.name == "string"
+      and (member.type.size == 0)
+      and member.arraySize == 0
+  ):
     return f"Bakelite::SizedArray<{type_name}*>"
   elif member.type.name == "string" and (member.type.size == 0):
     return f"{type_name}*"
@@ -68,6 +74,7 @@ def _size_postfix(member: ProtoStructMember) -> str:
   else:
     return ''
 
+
 def _array_postfix(member: ProtoStructMember) -> str:
   if member.arraySize is None or member.arraySize == 0:
     return ''
@@ -75,13 +82,15 @@ def _array_postfix(member: ProtoStructMember) -> str:
     return f"[{member.arraySize}]"
 
 
-def render(enums: List[ProtoEnum],
-          structs: List[ProtoStruct],
-          proto: Protocol,
-          comments: List[str]) -> str:
+def render(
+    enums: List[ProtoEnum],
+    structs: List[ProtoStruct],
+    proto: Protocol,
+    comments: List[str],
+) -> str:
 
-  enums_types = { enum.name: enum for enum in enums }
-  structs_types = { struct.name: struct for struct in structs }
+  enums_types = {enum.name: enum for enum in enums}
+  structs_types = {struct.name: struct for struct in structs}
 
   def _write_type(member: ProtoStructMember):
     if member.arraySize is not None:
@@ -89,17 +98,19 @@ def render(enums: List[ProtoEnum],
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      tmp_member_type = _map_type_member(tmp_member)
-      return (
-f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, const auto &val) {{
+      return f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, const auto &val) {{
       return {_write_type(tmp_member)}
-    }});""")
+    }});"""
     elif member.type.name in enums_types:
       underlying_type = _map_type(enums_types[member.type.name].type)
       return f"write(stream, ({underlying_type}){member.name});"
     elif member.type.name in structs_types:
       return f"{member.name}.pack(stream);"
-    elif member.type.name in prim_types and member.type.name != "bytes" and member.type.name != "string":
+    elif (
+        member.type.name in prim_types
+        and member.type.name != "bytes"
+        and member.type.name != "string"
+    ):
       return f"write(stream, {member.name});"
     elif member.type.name == "bytes":
       if member.type.size != 0:
@@ -120,17 +131,19 @@ f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, const auto &val) {
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      tmp_member_type = _map_type_member(tmp_member)
-      return (
-f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
+      return f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
       return {_read_type(tmp_member)}
-    }});""")
+    }});"""
     elif member.type.name in enums_types:
       underlying_type = _map_type(enums_types[member.type.name].type)
       return f"read(stream, ({underlying_type}&){member.name});"
     elif member.type.name in structs_types:
       return f"{member.name}.unpack(stream);"
-    elif member.type.name in prim_types and member.type.name != "bytes" and member.type.name != "string":
+    elif (
+        member.type.name in prim_types
+        and member.type.name != "bytes"
+        and member.type.name != "string"
+    ):
       return f"read(stream, {member.name});"
     elif member.type.name == "bytes":
       if member.type.size != 0:
@@ -149,48 +162,55 @@ f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
   framer = ""
 
   if proto is not None:
-    message_ids = [( msg.name, msg.number ) for msg in proto.message_ids]
+    message_ids = [(msg.name, msg.number) for msg in proto.message_ids]
     options = {option.name: option.value for option in proto.options}
     crc = options.get("crc", "none").lower()
     framing = options.get("framing", "").lower()
     max_length = options.get("maxLength", None)
 
-    if(framing == ""):
+    if framing == "":
       raise RuntimeError("A frame type must be specified")
 
-    if(max_length is None):
+    if max_length is None:
       raise RuntimeError("maxLength must be specified")
 
-    if(crc == "none"):
+    if crc == "none":
       crc_type = "CrcNoop"
-    elif(crc == "crc8"):
+    elif crc == "crc8":
       crc_type = "Crc8"
-    elif(crc == "crc16"):
+    elif crc == "crc16":
       crc_type = "Crc16"
-    elif(crc == "crc32"):
+    elif crc == "crc32":
       crc_type = "Crc32"
     else:
       raise RuntimeError(f"Unkown CRC type {crc}")
 
-    if(framing == "cobs"):
+    if framing == "cobs":
       framer = f"Bakelite::CobsFramer<Bakelite::{crc_type}, {max_length}>"
     else:
       raise RuntimeError(f"Unkown CRC type {crc}")
 
   return template.render(
-    enums=enums,
-    structs=structs,
-    proto=proto,
-    comments=comments,
-    map_type=_map_type,
-    map_type_member=_map_type_member,
-    array_postfix=_array_postfix,
-    size_postfix=_size_postfix,
-    write_type=_write_type,
-    read_type=_read_type,
-    framer=framer,
-    message_ids=message_ids)
+      enums=enums,
+      structs=structs,
+      proto=proto,
+      comments=comments,
+      map_type=_map_type,
+      map_type_member=_map_type_member,
+      array_postfix=_array_postfix,
+      size_postfix=_size_postfix,
+      write_type=_write_type,
+      read_type=_read_type,
+      framer=framer,
+      message_ids=message_ids,
+  )
+
 
 def runtime() -> str:
-  with open(os.path.join(os.path.dirname(__file__), 'runtimes', 'cpptiny', 'bakelite.h'), "r", encoding='utf-8') as f:
+  with open(
+      os.path.join(os.path.dirname(__file__),
+                   'runtimes', 'cpptiny', 'bakelite.h'),
+      "r",
+      encoding='utf-8',
+  ) as f:
     return f.read()

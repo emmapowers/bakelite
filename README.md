@@ -1,6 +1,7 @@
 # Bakelite
 
 [![Tests](https://github.com/emmapowers/bakelite/actions/workflows/test.yaml/badge.svg)](https://github.com/emmapowers/bakelite/actions/workflows/test.yaml)
+[![Lint](https://github.com/emmapowers/bakelite/actions/workflows/lint.yaml/badge.svg)](https://github.com/emmapowers/bakelite/actions/workflows/lint.yaml)
 [![Documentation Status](https://readthedocs.org/projects/bakelite/badge/?version=latest)](https://bakelite.readthedocs.io/en/latest/?badge=latest)
 
 Bakelite is a utility that makes it simple to communicate with your firmware.
