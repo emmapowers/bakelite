@@ -5,7 +5,7 @@ test: cpptiny
 	./cpptiny
 
 cpptiny: cpptiny.cpp bakelite.h struct.h
-	gcc cpptiny.cpp -lstdc++ -std=c++14 -o cpptiny
+	gcc cpptiny.cpp -lstdc++ -std=c++14 -lm -o cpptiny
 
 struct.h: struct.ex
 	poetry run bakelite gen -l cpptiny -i struct.ex -o struct.h

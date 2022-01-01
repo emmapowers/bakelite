@@ -1,18 +1,23 @@
 # Bakelite
 
-Bakelite is a utility that automates the tedious tasks involved in communicating with hardware.
-You define your protocol defenition, and Bakelite will generate source code for you.
-Common tasks such as framing and error detection are handled out of the box.
+[![Tests](https://github.com/emmapowers/bakelite/actions/workflows/test.yaml/badge.svg)](https://github.com/emmapowers/bakelite/actions/workflows/test.yaml)
+[![Documentation Status](https://readthedocs.org/projects/bakelite/badge/?version=latest)](https://bakelite.readthedocs.io/en/latest/?badge=latest)
+
+Bakelite is a utility that makes it simple to communicate with your firmware.
+Bakelite uses a code generator to automate the tedius process of hand building your own protocol.
+It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
+
+[Documentation](https://bakelite.readthedocs.io/en/latest/)
 
 ## Features
-* Supported languages:
-  * C++
-  * Python
-* Protocol supports:
-  * Enums, Structs, strings, binary data, integers and floating point numbers of varying widths.
-  * Variable length strings and binary data.
-* Framing (COBS)
-* Error checking (CRC 8/16/32)
+* Compact, easy to understand data serialization format
+* Simple message passing
+* Built in framing and error detection
+* Easy to integrate with Serial, USB, TCP, I2C, etc...
+* Use only the parts you need
+* Code generators for:
+    * C++ (header only, no STL or memory allocation)
+    * Python
 
 A more formal overview of the protocol can be found
 [here](./docs/protocol.md), and examples can be found [here](./examples).

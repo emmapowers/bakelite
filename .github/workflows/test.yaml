@@ -1,0 +1,23 @@
+name: Run Tests
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          apt update && apt install -y build-essential
+          python -m pip install --upgrade pip
+          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
+          echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+      - name: Run Tests
+        run: |
+          source $HOME/.poetry/env
+          make install
+          make test
