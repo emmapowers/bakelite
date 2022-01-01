@@ -89,26 +89,19 @@ PYTEST_RERUN_OPTIONS := --last-failed --exitfirst
 .PHONY: test
 test: test-all ## Run unit and integration tests
 
-.PHONY: test-unit
-test-unit: install
+.PHONY: test-python
+test-python: install
 	@ ( mv $(FAILURES) $(FAILURES).bak || true ) > /dev/null 2>&1
 	poetry run pytest $(PACKAGE) $(PYTEST_OPTIONS)
 	@ ( mv $(FAILURES).bak $(FAILURES) || true ) > /dev/null 2>&1
 	poetry run coveragespace $(REPOSITORY) unit
 
-.PHONY: test-int
-test-int: install
-	@ if test -e $(FAILURES); then poetry run pytest tests $(PYTEST_RERUN_OPTIONS); fi
-	@ rm -rf $(FAILURES)
-	poetry run pytest tests $(PYTEST_OPTIONS)
-	poetry run coveragespace $(REPOSITORY) integration
+.PHONY: test-cpp
+test-cpp: 
+	cd bakelite/tests/generator && make test
 
 .PHONY: test-all
-test-all: install
-	@ if test -e $(FAILURES); then poetry run pytest $(PACKAGES) $(PYTEST_RERUN_OPTIONS); fi
-	@ rm -rf $(FAILURES)
-	poetry run pytest $(PACKAGES) $(PYTEST_OPTIONS)
-	poetry run coveragespace $(REPOSITORY) overall
+test-all: test-python test-cpp
 
 .PHONY: read-coverage
 read-coverage:
@@ -119,26 +112,16 @@ read-coverage:
 MKDOCS_INDEX := site/index.html
 
 .PHONY: docs
-docs: mkdocs uml ## Generate documentation and UML
+docs: mkdocs
 
 .PHONY: mkdocs
 mkdocs: install $(MKDOCS_INDEX)
 $(MKDOCS_INDEX): docs/requirements.txt mkdocs.yml docs/*.md
-	@ cd docs/about && ln -sf ../../CHANGELOG.md changelog.md
-	@ cd docs/about && ln -sf ../../CONTRIBUTING.md contributing.md
-	@ cd docs/about && ln -sf ../../LICENSE.md license.md
 	poetry run mkdocs build --clean --strict
 
 docs/requirements.txt: poetry.lock
 	@ poetry run pip freeze -qqq | grep mkdocs > $@
 	@ poetry run pip freeze -qqq | grep Pygments >> $@
-
-.PHONY: uml
-uml: install docs/*.png
-docs/*.png: $(MODULES)
-	poetry run pyreverse $(PACKAGE) -p $(PACKAGE) -a 1 -f ALL -o png --ignore tests
-	- mv -f classes_$(PACKAGE).png docs/classes.png
-	- mv -f packages_$(PACKAGE).png docs/packages.png
 
 .PHONY: mkdocs-serve
 mkdocs-serve: mkdocs
