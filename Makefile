@@ -101,12 +101,8 @@ docs: mkdocs
 
 .PHONY: mkdocs
 mkdocs: install $(MKDOCS_INDEX)
-$(MKDOCS_INDEX): docs/requirements.txt mkdocs.yml docs/*.md
+$(MKDOCS_INDEX): mkdocs.yml docs/*.md
 	poetry run mkdocs build --clean --strict
-
-docs/requirements.txt: poetry.lock
-	@ poetry run pip freeze -qqq | grep mkdocs > $@
-	@ poetry run pip freeze -qqq | grep Pygments >> $@
 
 .PHONY: mkdocs-serve
 mkdocs-serve: mkdocs

@@ -1,42 +1,26 @@
 # Bakelite
+Bakelite is a utility that makes it simple to communicate with your firmware.
+Bakelite uses a code generator to automate the tedious process of hand-building your own protocol.
+It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
 
-Bakelite is a utility that automates the tedious tasks involved in communicating with hardware.
-You define your protocol defenition, and Bakelite will generate source code for you.
-Common tasks such as framing and error detection are handled out of the box.
 
 ## Features
-* Supported languages:
-  * C++
-  * Python
-* Protocol supports:
-  * Enums, Structs, strings, binary data, integers and floating point numbers of varying widths.
-  * Variable length strings and binary data.
-* Framing (COBS)
-* Error checking (CRC 8/16/32)
-
-## Status
-This project is in early development. The C++ implementation is currently WIP.
-The API and data format are not stable, and will change without notice.
-The package has not yet been published to pypi.
+* Compact, easy to understand data serialization format
+* Simple message passing
+* Built-in framing and error detection
+* Easy to integrate with Serial, TCP, USB, I2C, etc...
+* Use only the parts you need
+* Code generators for:
+    * C++ (header only, no STL or memory allocation)
+    * Python
 
 
-# Usage
+## How Does it Work?
+![Overview](img/overview.svg)
+You start by creating a protocol definition file that describes the messages and fields you'd like to send. It also includes information about the protocol itself, like what type of framing to use and the maximum message length.
 
-## Installation
-
-Bakelite requires Python 3.8 or above.
-
-Install it via pip.
-```bash
-$ pip install bakelite
-```
-
-## Code Generation
-
-After installation, a new CLI tool `bakelite` is now available.
-
-Craete a protocol defenition file `my_proto.bakelite`.
-```text
+Here's an example:
+```proto
 struct TestMessage {
   message: string[128]
 }
@@ -57,13 +41,28 @@ protocol {
 }
 ```
 
-Then generate bindings for the languages you use.
-
+Now that you've created the definition file, we can generate some code:
 ```bash
-# Generate C++ Bindings
-$ bakelite runtime -l cpptiny -o bakelite.h
-$ bakelite gen -l cpptiny -i my_proto.bakelite -o my_proto.h
-
-# Generate Python Bindings
-$ bakelite gen -l python -i my_proto.bakelite -o my_proto.py
+bakelite gen -l python -i my_proto.bakelite -o my_proto.py
 ```
+
+And then use it to send a message over a serial port:
+```python3
+from proto import Protocol, TestMessage, Ack
+import serial
+
+# Open a serial port and send an Ack message
+with serial.Serial(':COM1', 9600) as port:
+  proto = Protocol(stream=port)
+  proto.send(Ack(code=123))
+```
+
+Message serialization, framing, and error detection are all taken care of.
+If you need something more customized, you can use any of the components independently.
+Drop-in your own CRC algorithm, use the framer with your own message format, or just use the serializer on its own.
+
+For a more complete example, have a look at the [Python/Arduino Example](https://github.com/emmapowers/bakelite/tree/master/examples/arduino).
+
+## Status
+This project is in early development. The C++ implementation is currently WIP.
+The API and data format are not stable and will change without notice.
