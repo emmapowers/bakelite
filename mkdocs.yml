@@ -12,7 +12,12 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Quickstart: quickstart.md
+  - Tutorial: tutorial.md
   - Protocol Spec: protocol.md
+  - Languages:
+    - C++ (Tiny): cpptiny.md
+    - Python: python.md
   - About:
     - Release Notes: about/changelog.md
     - Contributing: about/contributing.md
