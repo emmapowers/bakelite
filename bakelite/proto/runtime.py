@@ -5,7 +5,7 @@ from io import BufferedIOBase, BytesIO
 from typing import Any, Dict
 
 from ..generator.types import Protocol
-from .framing import Framer
+from .framing import CrcSize, Framer
 
 
 class ProtocolError(RuntimeError):
@@ -44,26 +44,22 @@ class ProtocolBase:
     self._ids = {id.number: id.name for id in self._desc.message_ids}
     self._messages = {id.name: id.number for id in self._desc.message_ids}
 
-    use_crc = False
-    crc_bytes = 0
+    crc_size = CrcSize.NO_CRC
     crc = crc.lower()
 
     if crc == "none":
-      use_crc = False
+      crc_size = CrcSize.NO_CRC
     elif crc == "crc8":
-      use_crc = True
-      crc_bytes = 1
+      crc_size = CrcSize.CRC8
     elif crc == "crc16":
-      use_crc = True
-      crc_bytes = 2
+      crc_size = CrcSize.CRC16
     elif crc == "crc32":
-      use_crc = True
-      crc_bytes = 4
+      crc_size = CrcSize.CRC32
     else:
       raise RuntimeError(f"Unkown CRC type {crc}")
 
     if not framer:
-      self._framer = Framer(crc=use_crc, crc_num_bytes=crc_bytes)
+      self._framer = Framer(crc=crc_size)
     else:
       self._framer = framer
 

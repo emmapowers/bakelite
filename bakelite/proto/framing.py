@@ -1,9 +1,21 @@
+from enum import Enum
 from typing import Optional
 
 import crcmod
 
 
-g_crc_func = crcmod.predefined.mkPredefinedCrcFun('crc-8')
+class CrcSize(Enum):
+  NO_CRC = 0
+  CRC8 = 1
+  CRC16 = 2
+  CRC32 = 4
+
+
+g_crc_funcs = {
+    CrcSize.CRC8: crcmod.predefined.mkPredefinedCrcFun('crc-8'),
+    CrcSize.CRC16: crcmod.predefined.mkPredefinedCrcFun('crc-16'),
+    CrcSize.CRC32: crcmod.predefined.mkPredefinedCrcFun('crc-32'),
+}
 
 
 class FrameError(RuntimeError):
@@ -80,18 +92,18 @@ def decode(data: bytes):
   return output
 
 
-def append_crc(data: bytes, crc_fn=g_crc_func, crc_num_bytes=1):
-  return data + crc_fn(data).to_bytes(crc_num_bytes, byteorder='little')
+def append_crc(data: bytes, crc_size=CrcSize.CRC8):
+  return data + g_crc_funcs[crc_size](data).to_bytes(crc_size.value, byteorder='little')
 
 
-def check_crc(data: bytes, crc_fn=g_crc_func, crc_num_bytes=1):
+def check_crc(data: bytes, crc_size=CrcSize.CRC8):
   if not data:
     raise CRCCheckFailure()
 
-  crc_val = int.from_bytes(data[-crc_num_bytes:], byteorder='little')
-  output = data[:-crc_num_bytes]
+  crc_val = int.from_bytes(data[-crc_size.value:], byteorder='little')
+  output = data[:-crc_size.value]
 
-  if crc_fn(output) != crc_val:
+  if g_crc_funcs[crc_size](output) != crc_val:
     raise CRCCheckFailure()
 
   return output
@@ -102,15 +114,11 @@ class Framer:
       self,
       encode_fn=encode,
       decode_fn=decode,
-      crc=True,
-      crc_fn=g_crc_func,
-      crc_num_bytes=1,
+      crc=CrcSize.CRC8
   ):
     self._encode_fn = encode_fn
     self._decode_fn = decode_fn
     self._crc = crc
-    self._crc_fn = crc_fn
-    self._crc_num_bytes = crc_num_bytes
     self._buffer = bytearray()
     self._frame = bytearray()
 
@@ -118,10 +126,8 @@ class Framer:
     if not data:
       raise EncodeError('data must not be empty')
 
-    if self._crc:
-      data = append_crc(
-          data, crc_fn=self._crc_fn, crc_num_bytes=self._crc_num_bytes
-      )
+    if self._crc != CrcSize.NO_CRC:
+      data = append_crc(data, crc_size=self._crc)
 
     return b'\x00' + encode(data) + b'\x00'
 
@@ -152,9 +158,7 @@ class Framer:
   def _decode_frame_int(self, data):
     data = decode(data)
 
-    if self._crc:
-      data = check_crc(
-          data, crc_fn=self._crc_fn, crc_num_bytes=self._crc_num_bytes
-      )
+    if self._crc != CrcSize.NO_CRC:
+      data = check_crc(data, crc_size=self._crc)
 
     return data

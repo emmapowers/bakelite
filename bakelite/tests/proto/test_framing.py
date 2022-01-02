@@ -4,7 +4,7 @@
 import crcmod
 from pytest import raises
 
-from bakelite.proto import framing
+from bakelite.proto import CrcSize, framing
 
 
 def describe_encoder():
@@ -96,18 +96,37 @@ def describe_crc():
     with raises(framing.CRCCheckFailure):
       framing.check_crc(b'hello world')
 
-  def append_crc_16bit(expect):
-    crc_fn_16bit = crcmod.predefined.mkPredefinedCrcFun('crc-16')
+  def append_crc_8bit(expect):
     expect(
         framing.append_crc(
-            b'hello world', crc_fn=crc_fn_16bit, crc_num_bytes=2)
+            b'hello world', crc_size=CrcSize.CRC8)
+    ) == b'hello world\xa8'
+
+  def check_crc_8bit(expect):
+    expect(
+        framing.check_crc(b'hello world\xa8', crc_size=CrcSize.CRC8)
+    ) == b'hello world'
+
+  def append_crc_16bit(expect):
+    expect(
+        framing.append_crc(
+            b'hello world', crc_size=CrcSize.CRC16)
     ) == b'hello world\xc19'
 
   def check_crc_16bit(expect):
-    crc_fn_16bit = crcmod.predefined.mkPredefinedCrcFun('crc-16')
     expect(
-        framing.check_crc(b'hello world\xc19',
-                          crc_fn=crc_fn_16bit, crc_num_bytes=2)
+        framing.check_crc(b'hello world\xc19', crc_size=CrcSize.CRC16)
+    ) == b'hello world'
+
+  def append_crc_32bit(expect):
+    expect(
+        framing.append_crc(
+            b'hello world', crc_size=CrcSize.CRC32)
+    ) == b'hello world\x85\x11J\r'
+
+  def check_crc_32bit(expect):
+    expect(
+        framing.check_crc(b'hello world\x85\x11J\r', crc_size=CrcSize.CRC32)
     ) == b'hello world'
 
 
@@ -119,9 +138,14 @@ def describe_framer():
     ) == b'\x00\x06hello\x07world\x93\x00'
 
   def encode_frame_no_crc(expect):
-    framer = framing.Framer(crc=False)
+    framer = framing.Framer(crc=CrcSize.NO_CRC)
     expect(framer.encode_frame(b'hello\x00world')
            ) == b'\x00\x06hello\x06world\x00'
+
+  def encode_frame_crc_32(expect):
+    framer = framing.Framer(crc=CrcSize.CRC32)
+    expect(framer.encode_frame(b'hello\x00world')
+           ) == b'\x00\x06hello\nworld\xb3\x14\xe6\n\x00'
 
   def encode_frame_zero_lenth(expect):
     framer = framing.Framer()
@@ -133,8 +157,13 @@ def describe_framer():
     framer.append_buffer(b'\x06hello\x07world\x93\x00')
     expect(framer.decode_frame()) == b'hello\x00world'
 
+  def decode_frame_crc_32(expect):
+    framer = framing.Framer(crc=CrcSize.CRC32)
+    framer.append_buffer(b'\x00\x06hello\nworld\xb3\x14\xe6\n\x00')
+    expect(framer.decode_frame()) == b'hello\x00world'
+
   def decode_frame_no_crc(expect):
-    framer = framing.Framer(crc=False)
+    framer = framing.Framer(crc=CrcSize.NO_CRC)
     framer.append_buffer(b'\x06hello\x06world\x00')
     expect(framer.decode_frame()) == b'hello\x00world'
 
