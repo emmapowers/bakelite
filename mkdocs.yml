@@ -1,5 +1,5 @@
 site_name: bakelite
-site_description: bakelite project description
+site_description: Bakelite is a utility that makes it simple to communicate with your firmware.
 site_author: Emma Powers
 
 repo_url: https://github.com/emmapowers/bakelite
@@ -13,11 +13,11 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
-  - Tutorial: tutorial.md
+  # - Tutorial: tutorial.md
   - Protocol Spec: protocol.md
-  - Languages:
-    - C++ (Tiny): cpptiny.md
-    - Python: python.md
+  # - Languages:
+  #   - C++ (Tiny): cpptiny.md
+  #   - Python: python.md
   - About:
     - Release Notes: about/changelog.md
     - Contributing: about/contributing.md
