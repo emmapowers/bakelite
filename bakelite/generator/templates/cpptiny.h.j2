@@ -94,7 +94,7 @@ public:
   }
 
   % for message in message_ids:
-  int send{{message[0]}}(const {{message[0]}} &val) {
+  int send(const {{message[0]}} &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::{{message[0]}};
     val.pack(outStream);
@@ -111,7 +111,7 @@ public:
   % endfor
 
   % for message in message_ids:
-  int decode{{message[0]}}({{message[0]}} &val) {
+  int decode({{message[0]}} &val) {
     assert(m_receivedMessage == Message::{{message[0]}});
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);

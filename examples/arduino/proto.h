@@ -112,7 +112,7 @@ public:
     return Message::NoMessage;
   }
 
-  int sendTestMessage(const TestMessage &val) {
+  int send(const TestMessage &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::TestMessage;
     val.pack(outStream);
@@ -126,7 +126,7 @@ public:
     return ret == result.length ? 0 : -1;
   }
   
-  int sendAck(const Ack &val) {
+  int send(const Ack &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::Ack;
     val.pack(outStream);
@@ -140,13 +140,13 @@ public:
     return ret == result.length ? 0 : -1;
   }
   
-  int decodeTestMessage(TestMessage &val) {
+  int decode(TestMessage &val) {
     assert(m_receivedMessage == Message::TestMessage);
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   
-  int decodeAck(Ack &val) {
+  int decode(Ack &val) {
     assert(m_receivedMessage == Message::Ack);
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
