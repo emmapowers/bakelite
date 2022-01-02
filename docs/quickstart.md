@@ -13,7 +13,7 @@ After installation, a new CLI tool `bakelite` is now available.
 
 ## Define the Protocol
 
-Craete a protocol defenition file `my_proto.bakelite`.
+Create a protocol defenition file `my_proto.bakelite`.
 ```text
 struct TestMessage {
   message: string[128]
@@ -35,13 +35,13 @@ protocol {
 }
 ```
 
-Then generate bindings for the languages you use.
+## Generate Code
 
 ```bash
-# Generate C++ Bindings
+# Generate C++ code
 $ bakelite runtime -l cpptiny -o bakelite.h
 $ bakelite gen -l cpptiny -i my_proto.bakelite -o my_proto.h
 
-# Generate Python Bindings
+# Generate Python code
 $ bakelite gen -l python -i my_proto.bakelite -o my_proto.py
 ```

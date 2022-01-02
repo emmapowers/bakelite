@@ -7,6 +7,9 @@ edit_uri: https://github.com/emmapowers/bakelite/edit/master/docs
 
 theme: readthedocs
 
+extra_css:
+  - css/mkdocstrings.css
+
 markdown_extensions:
   - codehilite
 
@@ -15,9 +18,9 @@ nav:
   - Quickstart: quickstart.md
   # - Tutorial: tutorial.md
   - Protocol Spec: protocol.md
-  # - Languages:
-  #   - C++ (Tiny): cpptiny.md
-  #   - Python: python.md
+  - Languages:
+    - C++ (Tiny): cpptiny.md
+    - Python: python.md
   - About:
     - Release Notes: about/changelog.md
     - Contributing: about/contributing.md

@@ -5,7 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/bakelite/badge/?version=latest)](https://bakelite.readthedocs.io/en/latest/?badge=latest)
 
 Bakelite is a utility that makes it simple to communicate with your firmware.
-Bakelite uses a code generator to automate the tedious process of hand building your own protocol.
+Bakelite uses a code generator to automate the tedious process of hand-building your own protocol.
 It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
 
 [Documentation](https://bakelite.readthedocs.io/en/latest/)
@@ -29,7 +29,7 @@ The API and data format are not stable, and will change without notice.
 
 ## How Does it Work?
 ![Overview](docs/img/overview.svg)
-You start by creating a protocol definition file that describes the messages and fields you'd like to send. It also includes information about the protocol itself, like what kind of framing to use, and the maximum message length.
+You start by creating a protocol definition file that describes the messages and fields you'd like to send. It also includes information about the protocol itself, like what kind of framing to use and the maximum message length.
 
 Here's an example:
 ```proto
@@ -71,6 +71,6 @@ with serial.Serial(':COM1', 9600) as port:
 
 Message serialization, framing, and error detection are all taken care of.
 If you need something more customized, you can use any of the components independently.
-Drop in your own CRC algorithm, use the framer with your own message format, or just use the serializer on it's own.
+Drop-in your own CRC algorithm, use the framer with your own message format, or just use the serializer on its own.
 
 For a more complete example, have a look at the [Python/Arduino Example](./examples/arduino).
