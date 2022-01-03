@@ -38,9 +38,9 @@ class Protocol(ProtocolBase):
     super().__init__(
       maxLength="256",
       framing="COBS",
-      crc="None",
+      crc="CRC8",
       registry=registry,
-      desc=r'''{"options": [{"name": "maxLength", "value": "256", "comment": null, "annotations": []}, {"name": "framing", "value": "COBS", "comment": null, "annotations": []}, {"name": "crc", "value": "None", "comment": null, "annotations": []}], "message_ids": [{"name": "TestMessage", "number": 1, "comment": null, "annotations": []}, {"name": "Ack", "number": 2, "comment": null, "annotations": []}], "comment": null, "annotations": []}''',
+      desc=r'''{"options": [{"name": "maxLength", "value": "256", "comment": null, "annotations": []}, {"name": "framing", "value": "COBS", "comment": null, "annotations": []}, {"name": "crc", "value": "CRC8", "comment": null, "annotations": []}], "message_ids": [{"name": "TestMessage", "number": 1, "comment": null, "annotations": []}, {"name": "Ack", "number": 2, "comment": null, "annotations": []}], "comment": null, "annotations": []}''',
       **kwargs
     )
 

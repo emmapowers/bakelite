@@ -39,6 +39,7 @@ void loop() {
     break;
 
   case Protocol::Message::TestMessage: // We received a test message!
+  {
     //Decode the test message
     TestMessage msg;
     int ret = proto.decode(msg);
@@ -60,7 +61,7 @@ void loop() {
       return;
     }
     break;
-
+  }
   default:  // Just in case we get something unexpected...
     send_err("Unkown message received!", (uint8_t)messageId);
     break;

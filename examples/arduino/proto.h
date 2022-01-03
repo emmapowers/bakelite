@@ -78,7 +78,7 @@ struct Ack {
 
 
 
-template <class F = Bakelite::CobsFramer<Bakelite::CrcNoop, 256>>
+template <class F = Bakelite::CobsFramer<Bakelite::Crc8, 256>>
 class ProtocolBase {
 public:
   using ReadFn  = int (*)();

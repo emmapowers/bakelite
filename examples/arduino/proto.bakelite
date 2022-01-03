@@ -13,7 +13,7 @@ struct Ack {
 protocol {
   maxLength = 256
   framing = COBS
-  crc = None
+  crc = CRC8
 
   messageIds {
     TestMessage = 1
