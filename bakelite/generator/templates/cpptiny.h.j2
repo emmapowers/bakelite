@@ -97,14 +97,17 @@ public:
   int send(const {{message[0]}} &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::{{message[0]}};
+    size_t startPos = outStream.pos();
     val.pack(outStream);
-    auto result = m_framer.encodeFrame(sizeof(val));
-    
+    // Input fame size is the difference in stream position, plus the message byte
+    size_t frameSize = ((outStream.pos() - startPos)) + 1;
+    auto result = m_framer.encodeFrame(frameSize);
+
     if(result.status != 0) {
       return result.status;
     }
     
-    int ret = (*m_writeFn)(result.data, result.length);
+    int ret = (*m_writeFn)((const char *)result.data, result.length);
     return ret == result.length ? 0 : -1;
   }
   {{""}}
@@ -112,7 +115,9 @@ public:
 
   % for message in message_ids:
   int decode({{message[0]}} &val) {
-    assert(m_receivedMessage == Message::{{message[0]}});
+    if(m_receivedMessage != Message::{{message[0]}}) {
+      return -1;
+    }
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
