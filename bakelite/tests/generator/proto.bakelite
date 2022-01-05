@@ -7,13 +7,12 @@ struct TestMessage {
 
 struct Ack {
   code: uint8
-  message: string[128]
 }
 
 protocol {
   maxLength = 256
   framing = COBS
-  crc = CRC32
+  crc = CRC8
 
   messageIds {
     TestMessage = 1

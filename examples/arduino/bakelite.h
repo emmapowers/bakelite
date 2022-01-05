@@ -245,9 +245,9 @@ namespace Bakelite {
       size_t              out_len;
       int                 status;
   };
-  cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+  static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
                                  const uint8_t *src_ptr, size_t src_len);
-  cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+  static cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
                                  const uint8_t *src_ptr, size_t src_len);
   
   class CrcNoop {
@@ -466,7 +466,7 @@ namespace Bakelite {
   *                 operation and the length of the result (that was written to
   *                 dst_buf_ptr)
   */
-  cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+  static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
                                  const uint8_t *src_ptr, size_t src_len)
   {
     cobs_encode_result result = {0, COBS_ENCODE_OK};
@@ -564,7 +564,7 @@ namespace Bakelite {
   *                 operation and the length of the result (that was written to
   *                 dst_buf_ptr)
   */
-  cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
+  static cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
                                  const uint8_t *src_ptr, size_t src_len)
   {
     cobs_decode_result result = {0, COBS_DECODE_OK};
@@ -650,11 +650,29 @@ namespace Bakelite {
    *  Auto generated CRC functions
    */
 
+  // The CRC lookup tables are stored as const variables. On many platforms,
+  // const variables are stored in flash memroy. On AVR though, they are
+  // loaded into RAM on startup. A special PROGMEM macro is available on AVRs
+  // to indicate constants should be stored in program memory (flash).
+  // So if this macro is available, use it and assume we're on an AVR. 
+  #ifdef PROGMEM
+    #define BAKELITE_CONST PROGMEM
+    // PROGMEM variables need to be accessed using pgm_read_* functions.
+    #define BAKELITE_CONST_8(x)  pgm_read_byte(&(x))
+    #define BAKELITE_CONST_16(x) pgm_read_dword(&(x))
+    #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((uint8_t *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
+  #else
+    #define BAKELITE_CONST
+    #define BAKELITE_CONST_8(x)  x
+    #define BAKELITE_CONST_16(x) x
+    #define BAKELITE_CONST_32(x) x
+  #endif
+
   // Automatically generated CRC function
   // polynomial: 0x107
   struct crc8_fn {
     uint8_t operator()(const uint8_t *data, int len, uint8_t crc) {
-      static const uint8_t table[256] = {
+      static const uint8_t table[256] BAKELITE_CONST = {
       0x00U,0x07U,0x0EU,0x09U,0x1CU,0x1BU,0x12U,0x15U,
       0x38U,0x3FU,0x36U,0x31U,0x24U,0x23U,0x2AU,0x2DU,
       0x70U,0x77U,0x7EU,0x79U,0x6CU,0x6BU,0x62U,0x65U,
@@ -691,7 +709,7 @@ namespace Bakelite {
 
       while (len > 0)
       {
-        crc = table[*data ^ (uint8_t)crc];
+        crc = BAKELITE_CONST_8(table[*data ^ (uint8_t)crc]);
         data++;
         len--;
       }
@@ -703,7 +721,7 @@ namespace Bakelite {
   // polynomial: 0x18005, bit reverse algorithm
   struct crc16_fn {
     uint16_t operator()(const uint8_t *data, int len, uint16_t crc) {
-      static const uint16_t table[256] = {
+      static const uint16_t table[256] BAKELITE_CONST = {
       0x0000U,0xC0C1U,0xC181U,0x0140U,0xC301U,0x03C0U,0x0280U,0xC241U,
       0xC601U,0x06C0U,0x0780U,0xC741U,0x0500U,0xC5C1U,0xC481U,0x0440U,
       0xCC01U,0x0CC0U,0x0D80U,0xCD41U,0x0F00U,0xCFC1U,0xCE81U,0x0E40U,
@@ -740,7 +758,7 @@ namespace Bakelite {
 
       while (len > 0)
       {
-        crc = table[*data ^ (uint8_t)crc] ^ (crc >> 8);
+        crc = BAKELITE_CONST_16(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
         data++;
         len--;
       }
@@ -752,7 +770,7 @@ namespace Bakelite {
   // polynomial: 0x104C11DB7, bit reverse algorithm
   struct crc32_fn {
     uint32_t operator()(const uint8_t *data, int len, uint32_t crc) {
-      static const uint32_t table[256] = {
+      static const uint32_t table[256] BAKELITE_CONST = {
       0x00000000U,0x77073096U,0xEE0E612CU,0x990951BAU,
       0x076DC419U,0x706AF48FU,0xE963A535U,0x9E6495A3U,
       0x0EDB8832U,0x79DCB8A4U,0xE0D5E91EU,0x97D2D988U,
@@ -822,7 +840,7 @@ namespace Bakelite {
       crc = crc ^ 0xFFFFFFFFU;
       while (len > 0)
       {
-        crc = table[*data ^ (uint8_t)crc] ^ (crc >> 8);
+        crc = BAKELITE_CONST_32(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
         data++;
         len--;
       }

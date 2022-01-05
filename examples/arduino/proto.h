@@ -78,7 +78,7 @@ struct Ack {
 
 
 
-template <class F = Bakelite::CobsFramer<Bakelite::Crc8, 256>>
+template <class F = Bakelite::CobsFramer<Bakelite::Crc32, 256>>
 class ProtocolBase {
 public:
   using ReadFn  = int (*)();
@@ -115,39 +115,49 @@ public:
   int send(const TestMessage &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::TestMessage;
+    size_t startPos = outStream.pos();
     val.pack(outStream);
-    auto result = m_framer.encodeFrame(sizeof(val));
-    
+    // Input fame size is the difference in stream position, plus the message byte
+    size_t frameSize = ((outStream.pos() - startPos)) + 1;
+    auto result = m_framer.encodeFrame(frameSize);
+
     if(result.status != 0) {
       return result.status;
     }
     
-    int ret = (*m_writeFn)(result.data, result.length);
+    int ret = (*m_writeFn)((const char *)result.data, result.length);
     return ret == result.length ? 0 : -1;
   }
   
   int send(const Ack &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::Ack;
+    size_t startPos = outStream.pos();
     val.pack(outStream);
-    auto result = m_framer.encodeFrame(sizeof(val));
-    
+    // Input fame size is the difference in stream position, plus the message byte
+    size_t frameSize = ((outStream.pos() - startPos)) + 1;
+    auto result = m_framer.encodeFrame(frameSize);
+
     if(result.status != 0) {
       return result.status;
     }
     
-    int ret = (*m_writeFn)(result.data, result.length);
+    int ret = (*m_writeFn)((const char *)result.data, result.length);
     return ret == result.length ? 0 : -1;
   }
   
   int decode(TestMessage &val) {
-    assert(m_receivedMessage == Message::TestMessage);
+    if(m_receivedMessage != Message::TestMessage) {
+      return -1;
+    }
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   
   int decode(Ack &val) {
-    assert(m_receivedMessage == Message::Ack);
+    if(m_receivedMessage != Message::Ack) {
+      return -1;
+    }
     Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
