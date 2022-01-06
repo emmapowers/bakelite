@@ -3,6 +3,12 @@ PROJECT := bakelite
 PACKAGE := bakelite
 REPOSITORY := emmapowers/bakelite
 
+ifdef CI
+CI_FLAGS = "CI=${CI}" 
+else
+CI_FLAGS =
+endif
+
 # Project paths
 PACKAGES := $(PACKAGE) tests
 CONFIG := $(wildcard *.py)
@@ -83,7 +89,7 @@ test-python: install
 
 .PHONY: test-cpp
 test-cpp: 
-	cd bakelite/tests/generator && make test
+	cd bakelite/tests/generator && make test ${CI_FLAGS}
 
 .PHONY: test-all
 test-all: test-python test-cpp
