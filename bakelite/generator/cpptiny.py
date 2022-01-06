@@ -207,10 +207,13 @@ def render(
 
 
 def runtime() -> str:
-  with open(
+  def include(filename: str):
+    with open(
       os.path.join(os.path.dirname(__file__),
-                   'runtimes', 'cpptiny', 'bakelite.h'),
-      "r",
-      encoding='utf-8',
-  ) as f:
-    return f.read()
+                   'runtimes', 'cpptiny', filename), encoding='utf-8') as f:
+      return f.read()
+
+  runtime_template = env.get_template('cpptiny-bakelite.h.j2')
+  return runtime_template.render(
+    include=include
+  )

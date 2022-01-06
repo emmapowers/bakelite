@@ -30,5 +30,5 @@ proto.h: proto.bakelite
 	poetry run bakelite gen -l cpptiny -i proto.bakelite -o proto.h
 
 .PHONY: bakelite.h
-bakelite.h: ${INCLUDEPATH}/bakelite.h
+bakelite.h: ${INCLUDEPATH}/serializer.h ${INCLUDEPATH}/cobs.h ${INCLUDEPATH}/crc.h ${INCLUDEPATH}/declarations.h
 	poetry run bakelite runtime -l cpptiny -o bakelite.h
