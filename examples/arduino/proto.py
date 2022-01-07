@@ -23,7 +23,7 @@ class TestMessage:
   message: str
   
   
-@struct(registry, r'''{"members": [{"type": {"name": "uint8", "size": null}, "name": "code", "value": null, "comment": null, "annotations": [], "arraySize": null}, {"type": {"name": "string", "size": 128}, "name": "message", "value": null, "comment": null, "annotations": [], "arraySize": null}], "name": "Ack", "comment": null, "annotations": []}''')
+@struct(registry, r'''{"members": [{"type": {"name": "uint8", "size": null}, "name": "code", "value": null, "comment": null, "annotations": [], "arraySize": null}, {"type": {"name": "string", "size": 64}, "name": "message", "value": null, "comment": null, "annotations": [], "arraySize": null}], "name": "Ack", "comment": null, "annotations": []}''')
 @dataclass
 class Ack:
   code: int
@@ -36,11 +36,11 @@ class Ack:
 class Protocol(ProtocolBase):
   def __init__(self, **kwargs):
     super().__init__(
-      maxLength="256",
+      maxLength="70",
       framing="COBS",
-      crc="CRC32",
+      crc="CRC8",
       registry=registry,
-      desc=r'''{"options": [{"name": "maxLength", "value": "256", "comment": null, "annotations": []}, {"name": "framing", "value": "COBS", "comment": null, "annotations": []}, {"name": "crc", "value": "CRC32", "comment": null, "annotations": []}], "message_ids": [{"name": "TestMessage", "number": 1, "comment": null, "annotations": []}, {"name": "Ack", "number": 2, "comment": null, "annotations": []}], "comment": null, "annotations": []}''',
+      desc=r'''{"options": [{"name": "maxLength", "value": "70", "comment": null, "annotations": []}, {"name": "framing", "value": "COBS", "comment": null, "annotations": []}, {"name": "crc", "value": "CRC8", "comment": null, "annotations": []}], "message_ids": [{"name": "TestMessage", "number": 1, "comment": null, "annotations": []}, {"name": "Ack", "number": 2, "comment": null, "annotations": []}], "comment": null, "annotations": []}''',
       **kwargs
     )
 

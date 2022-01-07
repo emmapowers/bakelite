@@ -81,6 +81,10 @@ def _array_postfix(member: ProtoStructMember) -> str:
   else:
     return f"[{member.arraySize}]"
 
+def overhead(size: int, crc_size: int):
+  cobs_overhead = int((size + 253)/254)
+  return cobs_overhead + crc_size + 1
+
 
 def render(
     enums: List[ProtoEnum],
@@ -176,14 +180,21 @@ def render(
 
     if crc == "none":
       crc_type = "CrcNoop"
+      crc_size = 0
     elif crc == "crc8":
       crc_type = "Crc8"
+      crc_size = 1
     elif crc == "crc16":
       crc_type = "Crc16"
+      crc_size = 2
     elif crc == "crc32":
       crc_type = "Crc32"
+      crc_size = 4
     else:
       raise RuntimeError(f"Unkown CRC type {crc}")
+
+    max_length = int(max_length)
+    max_length += overhead(int(max_length), crc_size)
 
     if framing == "cobs":
       framer = f"Bakelite::CobsFramer<Bakelite::{crc_type}, {max_length}>"
