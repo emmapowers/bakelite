@@ -49,7 +49,7 @@ struct TestMessage {
 
 struct Ack {
   uint8_t code;
-  char message[128];
+  char message[64];
   
   template<class T>
   int pack(T &stream) const {
@@ -57,7 +57,7 @@ struct Ack {
     rcode = write(stream, code);
     if(rcode != 0)
       return rcode;
-    rcode = writeString(stream, message, 128);
+    rcode = writeString(stream, message, 64);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -69,7 +69,7 @@ struct Ack {
     rcode = read(stream, code);
     if(rcode != 0)
       return rcode;
-    rcode = readString(stream, message, 128);
+    rcode = readString(stream, message, 64);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -78,7 +78,7 @@ struct Ack {
 
 
 
-template <class F = Bakelite::CobsFramer<Bakelite::Crc32, 256>>
+template <class F = Bakelite::CobsFramer<Bakelite::Crc8, 73>>
 class ProtocolBase {
 public:
   using ReadFn  = int (*)();
