@@ -4,7 +4,7 @@
 * Simple
 * Easily understood on-wire layout
 * Composable
-* Suitable for working with hardware
+* Suitable for use on resource constrained embedded systems
 * Low boilerplate
 
 ## Design Non-Goals
@@ -15,7 +15,7 @@
 ### Numeric Types
 |Name                          |Size (Bytes)  |Description            |
 |------------------------------|--------------|-----------------------|
-|int8, int16, 1nt32, int64     |8, 16, 32, 64 | Signed integer        |
+|int8, int16, int32, int64     |8, 16, 32, 64 | Signed integer        |
 |uint8, uint16, uint32, uint64 |8, 16, 32, 64 | Unsigned integer      |
 |float32, float64              |32, 64        | Floating point number |
 |bool                          |1             | true/false value      |
@@ -51,7 +51,7 @@ For example:
 <tr><td>Purpose</td><td>Size</td><td colspan=3>Data</td></tr>
 </table>
 
-#### String (Fixed) `string[n]`
+#### String (Fixed Length) `string[n]`
 Strings are always null-terminated.
 If a string has a fixed length, any characters after the null-terminator may have any value.
 
@@ -70,7 +70,7 @@ The below example is invalid, because there is no room to store the null byte.
 <tr><td>Value</td><td>H</td><td>e</td><td>l</td><td>l</td><td>o</td></tr>
 </table>
 
-#### String (Variable) `string[]`
+#### String (Variable Length) `string[]`
 Unlike `bytes[]` variable lengths strings do not contain a size byte.
 Instead, the serializer will read until it encounters the first null byte.
 
@@ -260,3 +260,80 @@ CRC checks can be disabled if the link is reliable.
 Future versions may implement other error detection/correction schemes.
 
 ## Protocol
+The protocol wraps structs, framing, CRC, and other settings into an object the code generator can use to generate helpers.
+The protocol works by sending and receiving messages.
+Messages are simply structs that have been assigned a message ID.
+When sent, each messages is wrapped in a frame, and proceeded by a message ID byte.
+See the [layout](#layout) section below for more details.
+
+The below protocol would generate an implementation that uses COBS framing, CRC8, and supported up to 256 byte messages. It supports two messages `TestMessage` and `Ack`.
+```proto
+protocol {
+  maxLength = 256
+  framing = COBS
+  crc = CRC8
+
+  messageIds {
+    TestMessage = 1
+    Ack = 2
+  }
+}
+```
+
+### Message IDs
+To send a struct, it must be assigned a message ID.
+Message IDs are used by the receiver to determine which struct to decode.
+If a struct is nested inside another struct, only the root struct needs to be assigned an ID.
+
+In the example below, we only intend to send TestMessage, so it is assigned the ID of one.
+SubMessage is never sent directly, so no ID is assigned.
+```proto
+struct SubMessage {
+  code: uint8
+  text: string[]
+}
+
+TestMessage {
+  data: SubMessage
+  success: bool
+}
+
+protocol {
+  ...
+  messageIds {
+    TestMessage = 1
+  }
+}
+```
+
+### Max Length
+The `maxLength` parameter describes the maximum size, in bytes, of a message.
+This does not include the framing overhead, CRC, or message ID byte.
+For example, a maxLength of 64 means that any struct with a size of up to 64 bytes can be sent.
+
+The length of the frame that is actually sent will be longer.
+For the above example, if we sent a struct that was 64 bytes in size using COBS framing and CRC16 error detection, then the on-wire frame size would be 69 bytes.
+
+### Layout
+Here's an example frame with an 6 byte message, COBS framing and CRC16 error checking.
+<table>
+<tr>
+  <td>Role</td>
+  <td colspan=1>Framing</td>
+  <td colspan=7>Message</td>
+  <td colspan=3>Framing</td>
+</tr>
+<tr>
+  <td>Byte</td>
+  <td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td>
+  <td>7</td><td>8</td><td>9</td><td>10</td><td>11</td>
+</tr>
+<tr>
+  <td>Element</td>
+  <td colspan=1>COBS Overhead</td>
+  <td colspan=1>Message Id</td>
+  <td colspan=6>Message</td>
+  <td colspan=2>CRC16</td>
+  <td colspan=1>Null Byte</td>
+</tr>
+</table>
