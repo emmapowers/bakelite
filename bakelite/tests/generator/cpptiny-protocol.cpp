@@ -233,3 +233,14 @@ TEST_CASE("Proto recieve dynamic") {
   CHECK(result.numbers.data[1] == -1234);
   CHECK(result.numbers.data[2] == 456);
 }
+
+// Convenience test for checking memory overhead
+// TEST_CASE("Proto check size") {
+//   stream.reset();
+//   Protocol protocol(
+//     []() { return stream.read(); },
+//     [](const char *data, size_t length) { return stream.write(data, length); }
+//   );
+
+//   CHECK(sizeof(protocol) == 0);
+// }
