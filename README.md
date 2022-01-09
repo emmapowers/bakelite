@@ -4,15 +4,18 @@
 [![Lint](https://github.com/emmapowers/bakelite/actions/workflows/lint.yaml/badge.svg)](https://github.com/emmapowers/bakelite/actions/workflows/lint.yaml)
 [![Documentation Status](https://readthedocs.org/projects/bakelite/badge/?version=latest)](https://bakelite.readthedocs.io/en/latest/?badge=latest)
 
-Bakelite is a utility that makes it simple to communicate with your firmware.
-Bakelite uses a code generator to automate the tedious process of hand-building your own protocol.
-It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
 
 [Documentation](https://bakelite.readthedocs.io/en/latest/) | 
 [Protocol Spec](https://bakelite.readthedocs.io/en/latest/protocol/) |
 [Arduino Example](https://github.com/emmapowers/bakelite/tree/master/examples/arduino)
 
 <hr/>
+
+Bakelite is a utility that makes it simple to communicate with your firmware.
+Bakelite uses a code generator to automate the tedious process of hand-building your own protocol.
+It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
+
+
 
 ## Features
 * Compact, easy to understand data serialization format
