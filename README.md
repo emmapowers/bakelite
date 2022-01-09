@@ -8,7 +8,11 @@ Bakelite is a utility that makes it simple to communicate with your firmware.
 Bakelite uses a code generator to automate the tedious process of hand-building your own protocol.
 It includes features like framing, error detection, and a lightweight C++ implementation suitable for small microcontrollers.
 
-[Documentation](https://bakelite.readthedocs.io/en/latest/)
+[Documentation](https://bakelite.readthedocs.io/en/latest/) | 
+[Protocol Spec](https://bakelite.readthedocs.io/en/latest/protocol/) |
+[Arduino Example](https://github.com/emmapowers/bakelite/tree/master/examples/arduino)
+
+<hr/>
 
 ## Features
 * Compact, easy to understand data serialization format
