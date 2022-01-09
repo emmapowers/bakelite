@@ -13,7 +13,7 @@ After installation, a new CLI tool `bakelite` is now available.
 
 ## Define the Protocol
 
-Create a protocol defenition file `my_proto.bakelite`.
+Create a protocol definition file `my_proto.bakelite`.
 ```text
 struct TestMessage {
   message: string[128]

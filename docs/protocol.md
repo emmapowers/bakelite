@@ -52,8 +52,8 @@ For example:
 </table>
 
 #### String (Fixed) `string[n]`
-Strings are always null terminated.
-If a string has a fixed length, any un-used characters will be null.
+Strings are always null-terminated.
+If a string has a fixed length, any characters after the null-terminator may have any value.
 
 For example:
 <table>
@@ -72,7 +72,7 @@ The below example is invalid, because there is no room to store the null byte.
 
 #### String (Variable) `string[]`
 Unlike `bytes[]` variable lengths strings do not contain a size byte.
-Instead, the serializer will read untill it encounters the first null byte.
+Instead, the serializer will read until it encounters the first null byte.
 
 For example:
 <table>
@@ -94,7 +94,7 @@ __Not for V1__
 All types have a maximum length of 64 bits.
 
 ### Enums
-Enums are a set of named constants that help make a protocol defenition easier to understand.
+Enums are a set of named constants that help make a protocol definition easier to understand.
 For example:
 ```
 enum PinDirection: uint8 {
@@ -116,9 +116,9 @@ struct MyTestStruct {
   c: uint16
 }
 ```
-Structs can contain any primitive type, bytes, string, arrays, enums, bitfield structs and other structs.
+Structs can contain any primitive type, bytes, string, arrays, enums, bitfield structs and, other structs.
 They cannot contain bitfield types (unless using an embedded bitfield).
-The members of a struct are encoded in-order.
+The members of a struct are encoded in order.
 There is no type or size information encoded with the struct.
 
 For example:
@@ -131,11 +131,11 @@ For example:
 ### Bitfield Structs
 __Not for V1__
 
-A bitfield struct lets you store data which is not byte aligned.
-These can be used in situations where memory or network bandwidth is very tightly constraoned,
-or, when communicating with register based hardware. I2C devices, for example.
+A bitfield struct lets you store data that is not byte aligned.
+These can be used in situations where memory or network bandwidth is very tightly constrained or when communicating with register-based hardware.
+I2C devices, for example.
 
-Below is an example of a bitfield defenition for the control register of a TMP1075 tempurature sensor.
+Below is an example of a bitfield definition for the control register of a TMP1075 temperature sensor.
 ```
 enum ConversionRate: uint{2} {
   Rate_27_5  = 0  # 27.5ms
@@ -159,10 +159,10 @@ bitfield struct ControlRegister {
 Bitfield types are not allowed in structs.
 You can include bitfield structs as members of a standard struct (see limitations below).
 Sometimes though, this can become verbose.
-In cases where you only need a few non-byte alligned fields in an otherwise normal struct,
+In cases where you only need a few non-byte aligned fields in an otherwise normal struct,
 embedded bitfields may be useful.
 
-For example this struct uses an embedded bitfield to represent the states of 8 pins in a port.
+For example, this struct uses an embedded bitfield to represent the states of 8 pins in a port.
 ```
 struct WritePort {
   portNum: uint8
@@ -182,20 +182,20 @@ struct WritePort {
 #### Limitations
 Due to their flexibility, bitfield structs may have a size that's not an even multiple of 8bit.
 This causes many non-byte aligned reads.
-This is size efficient, but makes them expensive to serialize.
-To limit this impact, in order to use a bitfield in a normal struct (embedded or otherwise) it must be a multiple of 8 bits.
+Non-byte aligned reads are size efficient but are expensive to serialize.
+To use a bitfield in a normal struct (embedded or otherwise), it must be a multiple of 8 bits.
 This limitation also applies when directly serializing a bitfield struct.
-If your bitfield struct is not naturaly a multiple of 8 bits, the `unused{n}` data type can be used to pad the data to the right size.
+If your bitfield struct is not naturally a multiple of 8 bits, the `unused{n}` data type can be used to pad the data to the correct size.
 
 ### Arrays
 Arrays are created by appending square brackets to the end of a type.
-`[n]` for fixed leng arrays, `[]` for variable length arrays.
+`[n]` for fixed length arrays, `[]` for variable-length arrays.
 There is some ambiguity when using arrays of strings or bytes.
 In such cases, the array indicator is placed after the type size.
-For example. A list of 5 variable length strings would look like this `string[][5]`.
+For example, a list of 5 variable-length strings would look like this `string[][5]`.
 
 #### Fixed Length
-Fixed length arrays always contain all their elements.
+Fixed-length arrays always contain all their elements.
 For example, an array of type `uint16[3]` will be encoded like this:
 
 <table>
@@ -205,7 +205,7 @@ For example, an array of type `uint16[3]` will be encoded like this:
 </table>
 
 #### Variable Length
-Variable length arrays are encided with a length byte, followd by N elements.
+Variable-length arrays are encoded with a length byte, followed by N elements.
 For example:
 
 <table>
@@ -228,35 +228,35 @@ This will wait for a future version, but a default endianness will be assumed.
 It can then be changed on a protocol, struct, or field level.
 
 ## Framing
-A few different framing types will be supported. For the first verionsion, only COBS will be implemented.
+A few different framing types will be supported. For the first version, only COBS will be implemented.
 
 ### Fixed
 __Not for V1__
 
-Frames messages into fixed length packets.
-Use this when your underlying hardware can reliably deliver corruption free fixed length messages.
+Frames messages into fixed-length packets.
+Use this when your underlying hardware can reliably deliver corruption-free fixed-length messages.
 
 This is not suitable for serial or TCP links.
 
 ### Length Based
 __Not for V1__
 
-A simple framing methid where a 4 byte length prefix is added to the data before it is transmitted.
+A simple framing method where a 4-byte length prefix is added to the data before it is transmitted.
 It's a lightweight protocol suitable for situations where the underlying stack provides error correction.
 
-This would be suitable for use with TCP, or with serial protocols that have well defined frame boundaries.
-It is not suitable for Serial, since you may start reading in the middle of a packet.
+This would be suitable for use with TCP, or with serial protocols that have well-defined frame boundaries.
+It is not suitable for Serial since you may start reading in the middle of a packet.
 
 ### COBS
-COBS is a robust framing alorithm with a low, fixed overhead.
-It it is also computationally efficient.
+COBS is a robust framing algorithm with low, fixed overhead.
+It is also computationally efficient.
 Combined with CRC error checking, it is robust against corruption and synchronization loss. See the [Wikipedia article](https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing) for more details.
 
 COBS is suitable for serial protocols.
 
 #### Error Checking
-By default, CRC32 error checking is used to ensure the frame has been decoded without errors.
-This can be disabled if the link is reliable.
+CRC8, 16, and 32 are supported.
+CRC checks can be disabled if the link is reliable.
 Future versions may implement other error detection/correction schemes.
 
 ## Protocol
