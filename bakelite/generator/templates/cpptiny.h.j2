@@ -114,11 +114,14 @@ public:
   % endfor
 
   % for message in message_ids:
-  int decode({{message[0]}} &val) {
+  int decode({{message[0]}} &val, char *buffer = nullptr, size_t length = 0) {
     if(m_receivedMessage != Message::{{message[0]}}) {
       return -1;
     }
-    Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
+    Bakelite::BufferStream stream(
+      (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
+      buffer, length
+    );
     return val.unpack(stream);
   }
   {{""}}

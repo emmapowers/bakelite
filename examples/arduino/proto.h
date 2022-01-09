@@ -146,19 +146,25 @@ public:
     return ret == result.length ? 0 : -1;
   }
   
-  int decode(TestMessage &val) {
+  int decode(TestMessage &val, char *buffer = nullptr, size_t length = 0) {
     if(m_receivedMessage != Message::TestMessage) {
       return -1;
     }
-    Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
+    Bakelite::BufferStream stream(
+      (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
+      buffer, length
+    );
     return val.unpack(stream);
   }
   
-  int decode(Ack &val) {
+  int decode(Ack &val, char *buffer = nullptr, size_t length = 0) {
     if(m_receivedMessage != Message::Ack) {
       return -1;
     }
-    Bakelite::BufferStream stream((char *)m_framer.readBuffer() + 1, m_receivedFrameLength);
+    Bakelite::BufferStream stream(
+      (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
+      buffer, length
+    );
     return val.unpack(stream);
   }
   

@@ -5,6 +5,10 @@ struct TestMessage {
   message: string[16]
 }
 
+struct ArrayMessage {
+  numbers: int32[]
+}
+
 struct Ack {
   code: uint8
 }
@@ -17,5 +21,6 @@ protocol {
   messageIds {
     TestMessage = 1
     Ack = 2
+    ArrayMessage = 3
   }
 }

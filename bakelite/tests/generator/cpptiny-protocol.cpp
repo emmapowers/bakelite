@@ -170,3 +170,66 @@ TEST_CASE("Proto decode wrong message") {
   TestMessage result;
   CHECK(protocol.decode(result) == -1);
 }
+
+TEST_CASE("Proto recieve no dynamic memory") {
+  stream.reset();
+  Protocol protocol(
+    []() { return stream.read(); },
+    [](const char *data, size_t length) { return stream.write(data, length); }
+  );
+
+  ArrayMessage msg;
+  int32_t numbers[3] = {1234, -1234, 456};
+  msg.numbers.data = numbers;
+  msg.numbers.size = 3;
+  protocol.send(msg);
+
+  CHECK(stream.pos() == 17);
+  CHECK(stream.hex() == "050303d20401072efbffffc8010102bb00");
+
+  size_t length = stream.pos();
+  stream.seek(0);
+
+  for(;stream.pos() < length - 1;) {
+    CHECK(protocol.poll() == Protocol::Message::NoMessage);
+  }
+  auto msgId = protocol.poll();
+  REQUIRE(msgId == Protocol::Message::ArrayMessage);
+
+  ArrayMessage result;
+  CHECK(protocol.decode(result) == -4);
+}
+
+TEST_CASE("Proto recieve dynamic") {
+  stream.reset();
+  Protocol protocol(
+    []() { return stream.read(); },
+    [](const char *data, size_t length) { return stream.write(data, length); }
+  );
+
+  ArrayMessage msg;
+  int32_t numbers[3] = {1234, -1234, 456};
+  msg.numbers.data = numbers;
+  msg.numbers.size = 3;
+  protocol.send(msg);
+
+  CHECK(stream.pos() == 17);
+  CHECK(stream.hex() == "050303d20401072efbffffc8010102bb00");
+
+  size_t length = stream.pos();
+  stream.seek(0);
+
+  for(;stream.pos() < length - 1;) {
+    CHECK(protocol.poll() == Protocol::Message::NoMessage);
+  }
+  auto msgId = protocol.poll();
+  REQUIRE(msgId == Protocol::Message::ArrayMessage);
+
+  ArrayMessage result;
+  char buffer[16];
+  CHECK(protocol.decode(result, buffer, sizeof(buffer)) == 0);
+  CHECK(result.numbers.size == 3);
+  CHECK(result.numbers.data[0] == 1234);
+  CHECK(result.numbers.data[1] == -1234);
+  CHECK(result.numbers.data[2] == 456);
+}
