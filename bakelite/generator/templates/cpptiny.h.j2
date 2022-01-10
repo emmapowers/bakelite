@@ -30,8 +30,7 @@ struct {{ struct.name }} {
   {{map_type_member(member)}} {{ member.name }}{{-array_postfix(member)-}}{{-size_postfix(member)-}} {{- ' = ' + member.value if member.value -}};
   % endfor
   {{""}}
-  template<class T>
-  int pack(T &stream) const {
+  int pack(Bakelite::Stream *stream) const {
     int rcode = 0;
     % for member in struct.members:
     rcode = {{write_type(member)}}
@@ -41,8 +40,7 @@ struct {{ struct.name }} {
     return rcode;
   }
   {{""}}
-  template<class T>
-  int unpack(T &stream) {
+  int unpack(Bakelite::Stream *stream) {
     int rcode = 0;
     % for member in struct.members:
     rcode = {{read_type(member)}}
@@ -98,7 +96,7 @@ public:
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::{{message[0]}};
     size_t startPos = outStream.pos();
-    val.pack(outStream);
+    val.pack(&outStream);
     // Input fame size is the difference in stream position, plus the message byte
     size_t frameSize = ((outStream.pos() - startPos)) + 1;
     auto result = m_framer.encodeFrame(frameSize);
@@ -122,7 +120,7 @@ public:
       (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
       buffer, length
     );
-    return val.unpack(stream);
+    return val.unpack(&stream);
   }
   {{""}}
   % endfor

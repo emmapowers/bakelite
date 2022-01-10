@@ -53,7 +53,7 @@ void loop() {
     
     Ack ack;
     ack.code = numResponses;
-    snprintf(ack.message, sizeof(ack.message), "a=%d b=%d status=%s msg='%s'", (int)msg.a, (int)msg.b, msg.status ? "true" : "false", msg.message);
+    snprintf(ack.message, sizeof(ack.message), "a=%d b=%d status=%s msg='%s'", (int)sizeof(proto), (int)msg.b, msg.status ? "true" : "false", msg.message);
     ret = proto.send(ack);
 
     if(ret != 0) {

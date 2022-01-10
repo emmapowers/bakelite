@@ -8,8 +8,7 @@ struct TestMessage {
   bool status;
   char message[16];
   
-  template<class T>
-  int pack(T &stream) const {
+  int pack(Bakelite::Stream *stream) const {
     int rcode = 0;
     rcode = write(stream, a);
     if(rcode != 0)
@@ -26,8 +25,7 @@ struct TestMessage {
     return rcode;
   }
   
-  template<class T>
-  int unpack(T &stream) {
+  int unpack(Bakelite::Stream *stream) {
     int rcode = 0;
     rcode = read(stream, a);
     if(rcode != 0)
@@ -51,8 +49,7 @@ struct Ack {
   uint8_t code;
   char message[64];
   
-  template<class T>
-  int pack(T &stream) const {
+  int pack(Bakelite::Stream *stream) const {
     int rcode = 0;
     rcode = write(stream, code);
     if(rcode != 0)
@@ -63,8 +60,7 @@ struct Ack {
     return rcode;
   }
   
-  template<class T>
-  int unpack(T &stream) {
+  int unpack(Bakelite::Stream *stream) {
     int rcode = 0;
     rcode = read(stream, code);
     if(rcode != 0)
@@ -116,7 +112,7 @@ public:
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::TestMessage;
     size_t startPos = outStream.pos();
-    val.pack(outStream);
+    val.pack(&outStream);
     // Input fame size is the difference in stream position, plus the message byte
     size_t frameSize = ((outStream.pos() - startPos)) + 1;
     auto result = m_framer.encodeFrame(frameSize);
@@ -133,7 +129,7 @@ public:
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
     m_framer.writeBuffer()[0] = (uint8_t)Message::Ack;
     size_t startPos = outStream.pos();
-    val.pack(outStream);
+    val.pack(&outStream);
     // Input fame size is the difference in stream position, plus the message byte
     size_t frameSize = ((outStream.pos() - startPos)) + 1;
     auto result = m_framer.encodeFrame(frameSize);
@@ -154,7 +150,7 @@ public:
       (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
       buffer, length
     );
-    return val.unpack(stream);
+    return val.unpack(&stream);
   }
   
   int decode(Ack &val, char *buffer = nullptr, size_t length = 0) {
@@ -165,7 +161,7 @@ public:
       (char *)m_framer.readBuffer() + 1, m_receivedFrameLength,
       buffer, length
     );
-    return val.unpack(stream);
+    return val.unpack(&stream);
   }
   
 private:

@@ -36,14 +36,14 @@ TEST_CASE("simple struct") {
   Ack t1 = {
     123
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 1);
   CHECK(hexString(data, stream.pos()) == "7b");
 
   Ack t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK(t2.code == 123);
 }
@@ -65,14 +65,14 @@ TEST_CASE("complex struct") {
     {1, 2, 3, 4},
     "hey",
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 24);
   CHECK(hexString(data, stream.pos()) == "052efbffff1fd204a4709dbf010100010203046865790000");
 
   TestStruct t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK(t2.int1 == 5);
   CHECK(t2.int2 == -1234);
@@ -94,14 +94,14 @@ TEST_CASE("enum struct") {
     Direction::Left,
     Speed::Fast
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 2);
   CHECK(hexString(data, stream.pos()) == "02ff");
 
   EnumStruct t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK_EQ(t2.direction, Direction::Left);
   CHECK_EQ(t2.speed, Speed::Fast);
@@ -117,14 +117,14 @@ TEST_CASE("nested struct") {
     { 127 },
     -4
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 4);
   CHECK(hexString(data, stream.pos()) == "01007ffc");
 
   NestedStruct t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK(t2.a.b1 == true);
   CHECK(t2.a.b2 == false);
@@ -140,14 +140,14 @@ TEST_CASE("deeply nested struct") {
   DeeplyNestedStruct t1 = {
     { { false, true } }
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 2);
   CHECK(hexString(data, stream.pos()) == "0001");
 
   DeeplyNestedStruct t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK(t2.c.a.b1 == false);
   CHECK(t2.c.a.b2 == true);
@@ -163,14 +163,14 @@ TEST_CASE("struct with fixed arrays") {
     { { 127 }, { 64 } },
     { "abc", "def", "ghi" }
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 17);
   CHECK(hexString(data, stream.pos()) == "0203017f40616263006465660067686900");
 
   ArrayStruct t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
   
   CHECK(t2.a[0] == Direction::Left);
   CHECK(t2.a[1] == Direction::Right);
@@ -205,14 +205,14 @@ TEST_CASE("struct with variable types") {
     { bytesList, 2 },
     { (char **)stringList, 3 }
   };
-  REQUIRE(t1.pack(stream) == 0);
+  REQUIRE(t1.pack(&stream) == 0);
 
   CHECK(stream.pos() == 62);
   CHECK(hexString(data, stream.pos()) == "0b68656c6c6f00576f726c64546869732069732061207465737420737472696e672100040102030402030405060307080903616263006465660067686900");
 
   VariableLength t2;
   stream.seek(0);
-  REQUIRE(t2.unpack(stream) == 0);
+  REQUIRE(t2.unpack(&stream) == 0);
 
   CHECK(t2.a.size == 11);
   CHECK(vector<uint8_t>(t2.a.data, t2.a.data+t2.a.size) == vector<uint8_t>(byteData, byteData+11));

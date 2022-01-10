@@ -102,7 +102,7 @@ def render(
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      return f"""writeArray(stream, {member.name}{size_arg}, [](T &stream, const auto &val) {{
+      return f"""writeArray(stream, {member.name}{size_arg}, [](Bakelite::Stream *stream, const auto &val) {{
       return {_write_type(tmp_member)}
     }});"""
     elif member.type.name in enums_types:
@@ -135,7 +135,7 @@ def render(
       tmp_member = copy(member)
       tmp_member.arraySize = None
       tmp_member.name = "val"
-      return f"""readArray(stream, {member.name}{size_arg}, [](T &stream, auto &val) {{
+      return f"""readArray(stream, {member.name}{size_arg}, [](Bakelite::Stream *stream, auto &val) {{
       return {_read_type(tmp_member)}
     }});"""
     elif member.type.name in enums_types:
