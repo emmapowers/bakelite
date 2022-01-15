@@ -109,12 +109,12 @@ int writeArray(T& stream, const SizedArray<V> &val, F writeCb) {
 }
 
 template <class T>
-int writeBytes(T& stream, const uint8_t *val, int size) {
+int writeBytes(T& stream, const char *val, int size) {
   return stream.write((const char *)val, size);
 }
 
 template <class T>
-int writeBytes(T& stream, const SizedArray<uint8_t> &val) {
+int writeBytes(T& stream, const SizedArray<char> &val) {
   int rcode = write(stream, val.size);
   return stream.write((const char *)val.data, val.size);
 }
@@ -175,25 +175,25 @@ int readArray(T& stream, SizedArray<V, S> &val, F readCb) {
 }
 
 template <class T>
-int readBytes(T& stream, uint8_t *val, int size) {
-  return stream.read((char *)val, size);
+int readBytes(T& stream, char *val, int size) {
+  return stream.read(val, size);
 }
 
 template <class T, typename S = uint8_t>
-int readBytes(T& stream, SizedArray<uint8_t, S> &val) {
+int readBytes(T& stream, SizedArray<char, S> &val) {
   S size = 0;
   int rcode = read(stream, size);
   if(rcode != 0)
       return rcode;
 
-  val.data = (uint8_t*)stream.alloc(size);
+  val.data = stream.alloc(size);
   val.size = size;
 
   if(val.data == nullptr) {
     return -5;
   }
 
-  return stream.read((char *)val.data, val.size);
+  return stream.read(val.data, val.size);
 }
 
 template <class T>

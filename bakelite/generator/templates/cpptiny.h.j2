@@ -79,7 +79,7 @@ public:
       return Message::NoMessage;
     }
 
-    auto result = m_framer.readFrameByte((uint8_t)byte);
+    auto result = m_framer.readFrameByte((char)byte);
     if(result.status == Bakelite::CobsDecodeState::Decoded) {
       if(result.length == 0) {
         return Message::NoMessage;
@@ -96,7 +96,7 @@ public:
   % for message in message_ids:
   int send(const {{message[0]}} &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
-    m_framer.writeBuffer()[0] = (uint8_t)Message::{{message[0]}};
+    m_framer.writeBuffer()[0] = (char)Message::{{message[0]}};
     size_t startPos = outStream.pos();
     val.pack(outStream);
     // Input fame size is the difference in stream position, plus the message byte

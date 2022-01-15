@@ -30,7 +30,7 @@ prim_types = {
     "uint64": "uint64_t",
     "float32": "float",
     "float64": "double",
-    "bytes": "uint8_t",
+    "bytes": "char",
     "string": "char",
 }
 

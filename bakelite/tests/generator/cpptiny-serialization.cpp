@@ -186,13 +186,13 @@ TEST_CASE("struct with variable types") {
   char *data = new char[256];
   char *heap = new char[256];
   BufferStream stream(data, 256, heap, 256);
-  uint8_t byteData[11] = { 0x68, 0x65, 0x6C, 0x6C, 0x6F,
+  char byteData[11] = { 0x68, 0x65, 0x6C, 0x6C, 0x6F,
         0,
         0x57, 0x6F, 0x72, 0x6C, 0x64 };
-  uint8_t bytes[4] = { 1, 2, 3, 4 };
-  uint8_t nestedBytesA[3] = { 4, 5, 6 };
-  uint8_t nestedBytesB[3] = { 7, 8, 9 };
-  SizedArray<uint8_t> bytesList[2] = {
+  uint8_t numbers[4] = { 1, 2, 3, 4 };
+  char nestedBytesA[3] = { 4, 5, 6 };
+  char nestedBytesB[3] = { 7, 8, 9 };
+  SizedArray<char> bytesList[2] = {
     { nestedBytesA, 3 },
     { nestedBytesB, 3 },
   };
@@ -201,7 +201,7 @@ TEST_CASE("struct with variable types") {
   VariableLength t1 = {
     { byteData, 11 },
     (char *)"This is a test string!",
-    { bytes, 4},
+    { numbers, 4},
     { bytesList, 2 },
     { (char **)stringList, 3 }
   };

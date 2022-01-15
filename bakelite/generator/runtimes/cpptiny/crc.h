@@ -8,7 +8,7 @@ public:
     return 0;
   }
 
-  void update(const uint8_t *c, size_t length) {
+  void update(const char *c, size_t length) {
   }
 };
 
@@ -23,7 +23,7 @@ public:
     return m_lastVal;
   }
 
-  void update(const uint8_t *data, size_t length) {
+  void update(const char *data, size_t length) {
     CrcFunc fn;
     m_lastVal = fn(data, length, m_lastVal);
   }
@@ -54,7 +54,7 @@ using Crc32 = Crc<crc32_fn, uint32_t>;
   // PROGMEM variables need to be accessed using pgm_read_* functions.
   #define BAKELITE_CONST_8(x)  pgm_read_byte(&(x))
   #define BAKELITE_CONST_16(x) pgm_read_dword(&(x))
-  #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((uint8_t *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
+  #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((char *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
 #else
   #define BAKELITE_CONST
   #define BAKELITE_CONST_8(x)  x
@@ -65,7 +65,9 @@ using Crc32 = Crc<crc32_fn, uint32_t>;
 // Automatically generated CRC function
 // polynomial: 0x107
 struct crc8_fn {
-  uint8_t operator()(const uint8_t *data, int len, uint8_t crc) {
+  uint8_t operator()(const char *data, int len, uint8_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint8_t table[256] BAKELITE_CONST = {
     0x00U,0x07U,0x0EU,0x09U,0x1CU,0x1BU,0x12U,0x15U,
     0x38U,0x3FU,0x36U,0x31U,0x24U,0x23U,0x2AU,0x2DU,
@@ -103,8 +105,8 @@ struct crc8_fn {
 
     while (len > 0)
     {
-      crc = BAKELITE_CONST_8(table[*data ^ (uint8_t)crc]);
-      data++;
+      crc = BAKELITE_CONST_8(table[*uData ^ (uint8_t)crc]);
+      uData++;
       len--;
     }
     return crc;
@@ -114,7 +116,9 @@ struct crc8_fn {
 // Automatically generated CRC function
 // polynomial: 0x18005, bit reverse algorithm
 struct crc16_fn {
-  uint16_t operator()(const uint8_t *data, int len, uint16_t crc) {
+  uint16_t operator()(const char *data, int len, uint16_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint16_t table[256] BAKELITE_CONST = {
     0x0000U,0xC0C1U,0xC181U,0x0140U,0xC301U,0x03C0U,0x0280U,0xC241U,
     0xC601U,0x06C0U,0x0780U,0xC741U,0x0500U,0xC5C1U,0xC481U,0x0440U,
@@ -152,8 +156,8 @@ struct crc16_fn {
 
     while (len > 0)
     {
-      crc = BAKELITE_CONST_16(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
-      data++;
+      crc = BAKELITE_CONST_16(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
+      uData++;
       len--;
     }
     return crc;
@@ -163,7 +167,9 @@ struct crc16_fn {
 // Automatically generated CRC function
 // polynomial: 0x104C11DB7, bit reverse algorithm
 struct crc32_fn {
-  uint32_t operator()(const uint8_t *data, int len, uint32_t crc) {
+  uint32_t operator()(const char *data, int len, uint32_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint32_t table[256] BAKELITE_CONST = {
     0x00000000U,0x77073096U,0xEE0E612CU,0x990951BAU,
     0x076DC419U,0x706AF48FU,0xE963A535U,0x9E6495A3U,
@@ -234,8 +240,8 @@ struct crc32_fn {
     crc = crc ^ 0xFFFFFFFFU;
     while (len > 0)
     {
-      crc = BAKELITE_CONST_32(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
-      data++;
+      crc = BAKELITE_CONST_32(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
+      uData++;
       len--;
     }
     crc = crc ^ 0xFFFFFFFFU;

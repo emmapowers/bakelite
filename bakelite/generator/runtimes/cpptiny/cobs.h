@@ -12,16 +12,16 @@ public:
   struct Result {
     int status;
     size_t length;
-    uint8_t *data;
+    char *data;
   };
 
   struct DecodeResult {
     CobsDecodeState status;
     size_t length;
-    uint8_t *data;
+    char *data;
   };
 
-  uint8_t *readBuffer() {
+  char *readBuffer() {
     return m_readBuffer;
   }
 
@@ -29,7 +29,7 @@ public:
     return sizeof(m_readBuffer);
   }
 
-  uint8_t *writeBuffer() {
+  char *writeBuffer() {
     return m_writePtr;
   }
 
@@ -37,7 +37,7 @@ public:
     return sizeof(m_writeBuffer) - overhead(BufferSize);
   }
 
-  Result encodeFrame(const uint8_t *data, size_t length) {
+  Result encodeFrame(const char *data, size_t length) {
     assert(data);
     assert(length <= BufferSize);
 
@@ -55,8 +55,8 @@ public:
       memcpy(m_writePtr + length, (void *)&crc_val, sizeof(crc_val));
     }
 
-    auto result = cobs_encode(m_writeBuffer, sizeof(m_writeBuffer),
-                              m_writePtr, length+C::size());
+    auto result = cobs_encode((void *)m_writeBuffer, sizeof(m_writeBuffer),
+                              (void *)m_writePtr, length+C::size());
     if(result.status != 0) {
       return { 1, 0, nullptr };
     }
@@ -66,7 +66,7 @@ public:
     return { 0, result.out_len + 1, m_writeBuffer };
   }
 
-  DecodeResult readFrameByte(uint8_t byte) {
+  DecodeResult readFrameByte(char byte) {
     *m_readPos = byte;
     size_t length = (m_readPos - m_readBuffer) + 1;
     if(byte == 0) {
@@ -90,7 +90,7 @@ private:
 
     length--; // Discard null byte
 
-    auto result = cobs_decode((uint8_t *)m_readBuffer, sizeof(m_readBuffer), (const uint8_t *)m_readBuffer, length);
+    auto result = cobs_decode((void *)m_readBuffer, sizeof(m_readBuffer), (void *)m_readBuffer, length);
     if(result.status != 0) {
       return { CobsDecodeState::DecodeFailure, 0, nullptr };
     }
@@ -121,10 +121,10 @@ private:
     return cobsOverhead(BufferSize + C::size()) + C::size() + 1;
   }
 
-  uint8_t m_readBuffer[BufferSize + overhead(BufferSize)];
-  uint8_t *m_readPos = m_readBuffer;
-  uint8_t m_writeBuffer[BufferSize + overhead(BufferSize)];
-  uint8_t *m_writePtr = m_writeBuffer + cobsOverhead(BufferSize);
+  char m_readBuffer[BufferSize + overhead(BufferSize)];
+  char *m_readPos = m_readBuffer;
+  char m_writeBuffer[BufferSize + overhead(BufferSize)];
+  char *m_writePtr = m_writeBuffer + cobsOverhead(BufferSize);
 };
 
 /***************
@@ -172,15 +172,15 @@ typedef enum
 *                 operation and the length of the result (that was written to
 *                 dst_buf_ptr)
 */
-static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len)
+static cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len)
 {
   cobs_encode_result result = {0, COBS_ENCODE_OK};
-  const uint8_t *src_read_ptr = src_ptr;
-  const uint8_t *src_end_ptr = src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
+  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
+  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_code_write_ptr = dst_buf_ptr;
+  uint8_t *dst_code_write_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_write_ptr = dst_code_write_ptr + 1;
   uint8_t src_byte = 0;
   uint8_t search_len = 1;
@@ -270,15 +270,15 @@ static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
 *                 operation and the length of the result (that was written to
 *                 dst_buf_ptr)
 */
-static cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len)
+static cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len)
 {
   cobs_decode_result result = {0, COBS_DECODE_OK};
-  const uint8_t *src_read_ptr = src_ptr;
-  const uint8_t *src_end_ptr = src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
+  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
+  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_write_ptr = dst_buf_ptr;
+  uint8_t *dst_write_ptr = (uint8_t *)dst_buf_ptr;
   size_t remaining_bytes;
   uint8_t src_byte;
   uint8_t i;
