@@ -98,7 +98,7 @@ public:
       return Message::NoMessage;
     }
 
-    auto result = m_framer.readFrameByte((uint8_t)byte);
+    auto result = m_framer.readFrameByte((char)byte);
     if(result.status == Bakelite::CobsDecodeState::Decoded) {
       if(result.length == 0) {
         return Message::NoMessage;
@@ -114,7 +114,7 @@ public:
 
   int send(const TestMessage &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
-    m_framer.writeBuffer()[0] = (uint8_t)Message::TestMessage;
+    m_framer.writeBuffer()[0] = (char)Message::TestMessage;
     size_t startPos = outStream.pos();
     val.pack(outStream);
     // Input fame size is the difference in stream position, plus the message byte
@@ -131,7 +131,7 @@ public:
   
   int send(const Ack &val) {
     Bakelite::BufferStream outStream((char *)m_framer.writeBuffer() + 1, m_framer.writeBufferSize() - 1);
-    m_framer.writeBuffer()[0] = (uint8_t)Message::Ack;
+    m_framer.writeBuffer()[0] = (char)Message::Ack;
     size_t startPos = outStream.pos();
     val.pack(outStream);
     // Input fame size is the difference in stream position, plus the message byte

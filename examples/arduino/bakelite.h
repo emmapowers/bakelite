@@ -8,11 +8,8 @@
 #ifndef __BAKELITE_H__
 #define __BAKELITE_H__
 
-// Arduino doesn't have cstdint
-#if __has_include(<cstdint>)
-# include <cstdint>
-#endif
-
+#include <stddef.h>
+#include <stdint.h>
 #include <assert.h>
 #include <string.h>
 
@@ -29,10 +26,10 @@ struct cobs_decode_result
     size_t              out_len;
     int                 status;
 };
-static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len);
-static cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len);
+static cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len);
+static cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len);
 
   /*
   *
@@ -150,12 +147,12 @@ int writeArray(T& stream, const SizedArray<V> &val, F writeCb) {
 }
 
 template <class T>
-int writeBytes(T& stream, const uint8_t *val, int size) {
+int writeBytes(T& stream, const char *val, int size) {
   return stream.write((const char *)val, size);
 }
 
 template <class T>
-int writeBytes(T& stream, const SizedArray<uint8_t> &val) {
+int writeBytes(T& stream, const SizedArray<char> &val) {
   int rcode = write(stream, val.size);
   return stream.write((const char *)val.data, val.size);
 }
@@ -216,25 +213,25 @@ int readArray(T& stream, SizedArray<V, S> &val, F readCb) {
 }
 
 template <class T>
-int readBytes(T& stream, uint8_t *val, int size) {
-  return stream.read((char *)val, size);
+int readBytes(T& stream, char *val, int size) {
+  return stream.read(val, size);
 }
 
 template <class T, typename S = uint8_t>
-int readBytes(T& stream, SizedArray<uint8_t, S> &val) {
+int readBytes(T& stream, SizedArray<char, S> &val) {
   S size = 0;
   int rcode = read(stream, size);
   if(rcode != 0)
       return rcode;
 
-  val.data = (uint8_t*)stream.alloc(size);
+  val.data = stream.alloc(size);
   val.size = size;
 
   if(val.data == nullptr) {
     return -5;
   }
 
-  return stream.read((char *)val.data, val.size);
+  return stream.read(val.data, val.size);
 }
 
 template <class T>
@@ -275,7 +272,7 @@ public:
     return 0;
   }
 
-  void update(const uint8_t *c, size_t length) {
+  void update(const char *c, size_t length) {
   }
 };
 
@@ -290,7 +287,7 @@ public:
     return m_lastVal;
   }
 
-  void update(const uint8_t *data, size_t length) {
+  void update(const char *data, size_t length) {
     CrcFunc fn;
     m_lastVal = fn(data, length, m_lastVal);
   }
@@ -321,7 +318,7 @@ using Crc32 = Crc<crc32_fn, uint32_t>;
   // PROGMEM variables need to be accessed using pgm_read_* functions.
   #define BAKELITE_CONST_8(x)  pgm_read_byte(&(x))
   #define BAKELITE_CONST_16(x) pgm_read_dword(&(x))
-  #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((uint8_t *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
+  #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((char *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
 #else
   #define BAKELITE_CONST
   #define BAKELITE_CONST_8(x)  x
@@ -332,7 +329,9 @@ using Crc32 = Crc<crc32_fn, uint32_t>;
 // Automatically generated CRC function
 // polynomial: 0x107
 struct crc8_fn {
-  uint8_t operator()(const uint8_t *data, int len, uint8_t crc) {
+  uint8_t operator()(const char *data, int len, uint8_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint8_t table[256] BAKELITE_CONST = {
     0x00U,0x07U,0x0EU,0x09U,0x1CU,0x1BU,0x12U,0x15U,
     0x38U,0x3FU,0x36U,0x31U,0x24U,0x23U,0x2AU,0x2DU,
@@ -370,8 +369,8 @@ struct crc8_fn {
 
     while (len > 0)
     {
-      crc = BAKELITE_CONST_8(table[*data ^ (uint8_t)crc]);
-      data++;
+      crc = BAKELITE_CONST_8(table[*uData ^ (uint8_t)crc]);
+      uData++;
       len--;
     }
     return crc;
@@ -381,7 +380,9 @@ struct crc8_fn {
 // Automatically generated CRC function
 // polynomial: 0x18005, bit reverse algorithm
 struct crc16_fn {
-  uint16_t operator()(const uint8_t *data, int len, uint16_t crc) {
+  uint16_t operator()(const char *data, int len, uint16_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint16_t table[256] BAKELITE_CONST = {
     0x0000U,0xC0C1U,0xC181U,0x0140U,0xC301U,0x03C0U,0x0280U,0xC241U,
     0xC601U,0x06C0U,0x0780U,0xC741U,0x0500U,0xC5C1U,0xC481U,0x0440U,
@@ -419,8 +420,8 @@ struct crc16_fn {
 
     while (len > 0)
     {
-      crc = BAKELITE_CONST_16(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
-      data++;
+      crc = BAKELITE_CONST_16(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
+      uData++;
       len--;
     }
     return crc;
@@ -430,7 +431,9 @@ struct crc16_fn {
 // Automatically generated CRC function
 // polynomial: 0x104C11DB7, bit reverse algorithm
 struct crc32_fn {
-  uint32_t operator()(const uint8_t *data, int len, uint32_t crc) {
+  uint32_t operator()(const char *data, int len, uint32_t crc) {
+    const unsigned char *uData = (unsigned char *)data;
+
     static const uint32_t table[256] BAKELITE_CONST = {
     0x00000000U,0x77073096U,0xEE0E612CU,0x990951BAU,
     0x076DC419U,0x706AF48FU,0xE963A535U,0x9E6495A3U,
@@ -501,8 +504,8 @@ struct crc32_fn {
     crc = crc ^ 0xFFFFFFFFU;
     while (len > 0)
     {
-      crc = BAKELITE_CONST_32(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
-      data++;
+      crc = BAKELITE_CONST_32(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
+      uData++;
       len--;
     }
     crc = crc ^ 0xFFFFFFFFU;
@@ -529,16 +532,16 @@ public:
   struct Result {
     int status;
     size_t length;
-    uint8_t *data;
+    char *data;
   };
 
   struct DecodeResult {
     CobsDecodeState status;
     size_t length;
-    uint8_t *data;
+    char *data;
   };
 
-  uint8_t *readBuffer() {
+  char *readBuffer() {
     return m_readBuffer;
   }
 
@@ -546,7 +549,7 @@ public:
     return sizeof(m_readBuffer);
   }
 
-  uint8_t *writeBuffer() {
+  char *writeBuffer() {
     return m_writePtr;
   }
 
@@ -554,7 +557,7 @@ public:
     return sizeof(m_writeBuffer) - overhead(BufferSize);
   }
 
-  Result encodeFrame(const uint8_t *data, size_t length) {
+  Result encodeFrame(const char *data, size_t length) {
     assert(data);
     assert(length <= BufferSize);
 
@@ -572,8 +575,8 @@ public:
       memcpy(m_writePtr + length, (void *)&crc_val, sizeof(crc_val));
     }
 
-    auto result = cobs_encode(m_writeBuffer, sizeof(m_writeBuffer),
-                              m_writePtr, length+C::size());
+    auto result = cobs_encode((void *)m_writeBuffer, sizeof(m_writeBuffer),
+                              (void *)m_writePtr, length+C::size());
     if(result.status != 0) {
       return { 1, 0, nullptr };
     }
@@ -583,7 +586,7 @@ public:
     return { 0, result.out_len + 1, m_writeBuffer };
   }
 
-  DecodeResult readFrameByte(uint8_t byte) {
+  DecodeResult readFrameByte(char byte) {
     *m_readPos = byte;
     size_t length = (m_readPos - m_readBuffer) + 1;
     if(byte == 0) {
@@ -607,7 +610,7 @@ private:
 
     length--; // Discard null byte
 
-    auto result = cobs_decode((uint8_t *)m_readBuffer, sizeof(m_readBuffer), (const uint8_t *)m_readBuffer, length);
+    auto result = cobs_decode((void *)m_readBuffer, sizeof(m_readBuffer), (void *)m_readBuffer, length);
     if(result.status != 0) {
       return { CobsDecodeState::DecodeFailure, 0, nullptr };
     }
@@ -638,10 +641,10 @@ private:
     return cobsOverhead(BufferSize + C::size()) + C::size() + 1;
   }
 
-  uint8_t m_readBuffer[BufferSize + overhead(BufferSize)];
-  uint8_t *m_readPos = m_readBuffer;
-  uint8_t m_writeBuffer[BufferSize + overhead(BufferSize)];
-  uint8_t *m_writePtr = m_writeBuffer + cobsOverhead(BufferSize);
+  char m_readBuffer[BufferSize + overhead(BufferSize)];
+  char *m_readPos = m_readBuffer;
+  char m_writeBuffer[BufferSize + overhead(BufferSize)];
+  char *m_writePtr = m_writeBuffer + cobsOverhead(BufferSize);
 };
 
 /***************
@@ -689,15 +692,15 @@ typedef enum
 *                 operation and the length of the result (that was written to
 *                 dst_buf_ptr)
 */
-static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len)
+static cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len)
 {
   cobs_encode_result result = {0, COBS_ENCODE_OK};
-  const uint8_t *src_read_ptr = src_ptr;
-  const uint8_t *src_end_ptr = src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
+  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
+  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_code_write_ptr = dst_buf_ptr;
+  uint8_t *dst_code_write_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_write_ptr = dst_code_write_ptr + 1;
   uint8_t src_byte = 0;
   uint8_t search_len = 1;
@@ -787,15 +790,15 @@ static cobs_encode_result cobs_encode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
 *                 operation and the length of the result (that was written to
 *                 dst_buf_ptr)
 */
-static cobs_decode_result cobs_decode(uint8_t *dst_buf_ptr, size_t dst_buf_len,
-                                const uint8_t *src_ptr, size_t src_len)
+static cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
+                                const void *src_ptr, size_t src_len)
 {
   cobs_decode_result result = {0, COBS_DECODE_OK};
-  const uint8_t *src_read_ptr = src_ptr;
-  const uint8_t *src_end_ptr = src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = dst_buf_ptr;
+  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
+  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
+  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
   uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_write_ptr = dst_buf_ptr;
+  uint8_t *dst_write_ptr = (uint8_t *)dst_buf_ptr;
   size_t remaining_bytes;
   uint8_t src_byte;
   uint8_t i;

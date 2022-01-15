@@ -8,11 +8,8 @@
 #ifndef __BAKELITE_H__
 #define __BAKELITE_H__
 
-// Arduino doesn't have cstdint
-#if __has_include(<cstdint>)
-# include <cstdint>
-#endif
-
+#include <stddef.h>
+#include <stdint.h>
 #include <assert.h>
 #include <string.h>
 
