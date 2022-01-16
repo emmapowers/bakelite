@@ -81,6 +81,7 @@ def _array_postfix(member: ProtoStructMember) -> str:
   else:
     return f"[{member.arraySize}]"
 
+
 def overhead(size: int, crc_size: int):
   cobs_overhead = int((size + 253)/254)
   return cobs_overhead + crc_size + 1
@@ -220,11 +221,11 @@ def render(
 def runtime() -> str:
   def include(filename: str):
     with open(
-      os.path.join(os.path.dirname(__file__),
-                   'runtimes', 'cpptiny', filename), encoding='utf-8') as f:
+        os.path.join(os.path.dirname(__file__),
+                     'runtimes', 'cpptiny', filename), encoding='utf-8') as f:
       return f.read()
 
   runtime_template = env.get_template('cpptiny-bakelite.h.j2')
   return runtime_template.render(
-    include=include
+      include=include
   )

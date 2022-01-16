@@ -11,6 +11,10 @@ from .types import *
 _g_parser = None
 
 
+class ValidationError(RuntimeError):
+  pass
+
+
 @dataclass
 class _Array:
   value: int
@@ -174,6 +178,22 @@ class TreeTransformer(Transformer):
       return ProtoType(name=str(args[0]), size=None)
 
 
+def validate(enums: List[ProtoEnum], structs: List[ProtoStruct],
+             protocol: Protocol, _comments: List[str]):
+  _enum_map = {enum.name: enum for enum in enums}
+  struct_map = {struct.name: struct for struct in structs}
+
+  if not protocol:
+    return
+
+  # Validate Message IDs
+  for msg_id in protocol.message_ids:
+    if msg_id.number == 0:
+      raise ValidationError("Message ID 0 is reverved for future use")
+    if msg_id.name not in struct_map:
+      raise ValidationError(f"{msg_id.name} assigned a message ID, but not declared")
+
+
 def parse(text: str):
   global _g_parser
 
@@ -192,8 +212,10 @@ def parse(text: str):
   items = list(tree.iter_subtrees_topdown())[0].children
 
   enums = _find_many(items, ProtoEnum)
-  messages = _find_many(items, ProtoStruct)
+  structs = _find_many(items, ProtoStruct)
   protocol = _find_one(items, Protocol)
   comments = [comment.value for comment in _find_many(items, _Comment)]
 
-  return (enums, messages, protocol, comments)
+  validate(enums, structs, protocol, comments)
+
+  return (enums, structs, protocol, comments)
