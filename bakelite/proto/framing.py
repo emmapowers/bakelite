@@ -1,21 +1,6 @@
-from enum import Enum
 from typing import Optional
 
-import crcmod
-
-
-class CrcSize(Enum):
-  NO_CRC = 0
-  CRC8 = 1
-  CRC16 = 2
-  CRC32 = 4
-
-
-g_crc_funcs = {
-    CrcSize.CRC8: crcmod.predefined.mkPredefinedCrcFun('crc-8'),
-    CrcSize.CRC16: crcmod.predefined.mkPredefinedCrcFun('crc-16'),
-    CrcSize.CRC32: crcmod.predefined.mkPredefinedCrcFun('crc-32'),
-}
+from .crc import CrcSize, crc_funcs
 
 
 class FrameError(RuntimeError):
@@ -93,7 +78,7 @@ def decode(data: bytes):
 
 
 def append_crc(data: bytes, crc_size=CrcSize.CRC8):
-  return data + g_crc_funcs[crc_size](data).to_bytes(crc_size.value, byteorder='little')
+  return data + crc_funcs[crc_size](data).to_bytes(crc_size.value, byteorder='little')
 
 
 def check_crc(data: bytes, crc_size=CrcSize.CRC8):
@@ -103,7 +88,7 @@ def check_crc(data: bytes, crc_size=CrcSize.CRC8):
   crc_val = int.from_bytes(data[-crc_size.value:], byteorder='little')
   output = data[:-crc_size.value]
 
-  if g_crc_funcs[crc_size](output) != crc_val:
+  if crc_funcs[crc_size](output) != crc_val:
     raise CRCCheckFailure()
 
   return output

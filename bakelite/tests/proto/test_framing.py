@@ -1,7 +1,6 @@
 """Tests for the frame class, CRC, and data encoding/decoding"""
 # pylint: disable=redefined-outer-name,unused-variable,expression-not-assigned,singleton-comparison
 
-import crcmod
 from pytest import raises
 
 from bakelite.proto import CrcSize, framing
