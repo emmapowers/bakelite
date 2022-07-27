@@ -1,3 +1,6 @@
+# 0.3.0 (2022-07-27)
+ - Upgrade Jinja2 dependency to V3
+
 # 0.2.0 (2022-01-09)
  - Cpptiny: Added CRC support
  - Cpptiny: Support decoding messages with dynamic array sizes
