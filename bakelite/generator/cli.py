@@ -8,7 +8,7 @@ from bakelite.generator import cpptiny, parse, python
 
 
 @click.group()
-def cli():
+def cli() -> None:
   pass
 
 
@@ -16,7 +16,7 @@ def cli():
 @click.option('--language', '-l', required=True)
 @click.option('--input', '-i', required=True)
 @click.option('--output', '-o', required=True)
-def gen(language: str, input: str, output: str):
+def gen(language: str, input: str, output: str) -> None:
   render_func = None
 
   if language == "python":
@@ -40,7 +40,7 @@ def gen(language: str, input: str, output: str):
 @cli.command()
 @click.option('--language', '-l', required=True)
 @click.option('--output', '-o', required=True)
-def runtime(language: str, output: str):
+def runtime(language: str, output: str) -> None:
   runtime_func = None
 
   if language == "cpptiny":
@@ -55,7 +55,7 @@ def runtime(language: str, output: str):
     f.write(generated_file)
 
 
-def main():
+def main() -> None:
   cli()
 
 

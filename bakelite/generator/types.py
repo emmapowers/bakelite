@@ -81,7 +81,7 @@ class Protocol(DataClassJsonMixin):
   annotations: List[ProtoAnnotation]
 
 
-def primitive_types():
+def primitive_types() -> List[str]:
   return [
       "bool",
       "int8",

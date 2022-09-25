@@ -3,7 +3,7 @@ from dataclasses import is_dataclass
 from enum import Enum
 from functools import partial
 from io import BufferedIOBase
-from typing import Any, Generic, TypeVar, cast
+from typing import Any, Generic, Type, TypeVar, cast
 
 from ..generator.types import (
     ProtoEnum,
@@ -186,7 +186,7 @@ def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> Any:
   return value
 
 
-def pack(self, stream: BufferedIOBase) -> None:
+def pack(self: Any, stream: BufferedIOBase) -> None:
   member: ProtoStructMember
   for member in self._desc.members:
     value = getattr(self, member.name)
@@ -208,13 +208,16 @@ def pack(self, stream: BufferedIOBase) -> None:
         _pack_type(stream, element, member.type, self._registry)
 
 
-def unpack(cls, stream: BufferedIOBase) -> None:
+TUnpack = TypeVar("TUnpack", bound=object)
+
+
+def unpack(cls: Type[TUnpack], stream: BufferedIOBase) -> TUnpack:
   members = {}
   member: ProtoStructMember
-  for member in cls._desc.members:
+  for member in cls._desc.members:  # type: ignore
     if member.arraySize is None:
       members[member.name] = _unpack_type(
-          stream, member.type, cls._registry)
+          stream, member.type, cls._registry)  # type: ignore
     else:
       value = []
       size = member.arraySize
@@ -223,7 +226,7 @@ def unpack(cls, stream: BufferedIOBase) -> None:
         size = pystruct.unpack('=B', stream.read(1))[0]
 
       for _i in range(0, size):
-        value.append(_unpack_type(stream, member.type, cls._registry))
+        value.append(_unpack_type(stream, member.type, cls._registry))  # type: ignore
       members[member.name] = value
 
   return cls(**members)
@@ -245,7 +248,7 @@ class Packable(Generic[T]):
 
 
 class struct:
-  def __init__(self, registry: Registry, json_desc: str):
+  def __init__(self, registry: Registry, json_desc: str) -> None:
     self.json_desc = json_desc
     self.registry = registry
 
@@ -269,19 +272,21 @@ class struct:
 
 
 class enum:
-  def __init__(self, registry: Registry, json_desc: str):
+  def __init__(self, registry: Registry, json_desc: str) -> None:
     self.json_desc = json_desc
     self.registry = registry
 
-  def __call__(self, cls):
+  TCls = TypeVar("TCls", bound=Enum)
+
+  def __call__(self, cls: Type[TCls]) -> Type[TCls]:
     if not issubclass(cls, Enum):
       raise SerializationError(f'{cls} is not a enum')
 
     desc: ProtoEnum
     desc = ProtoEnum.from_json(self.json_desc)
 
-    cls._desc = desc
-    cls._registry = self.registry
+    cls._desc = desc  # type:ignore
+    cls._registry = self.registry  # type:ignore
 
     self.registry.register(desc.name, cls)
 

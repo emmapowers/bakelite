@@ -1,3 +1,5 @@
+from typing import Union
+
 from jinja2 import Environment, PackageLoader
 
 from .types import *
@@ -44,14 +46,14 @@ def _map_type(member: ProtoStructMember) -> str:
     return type_name
 
 
-def _to_desc(dclass):
+def _to_desc(dclass: Union[ProtoEnum, ProtoStruct]) -> str:
   return dclass.to_json()
 
 
 def render(
     enums: List[ProtoEnum],
     structs: List[ProtoStruct],
-    proto: Protocol,
+    proto: Optional[Protocol],
     comments: List[str],
 ) -> str:
 
