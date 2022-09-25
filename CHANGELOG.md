@@ -1,3 +1,7 @@
+# 0.3.0 (2022-09-25)
+ - Much more robust static types, and type checking
+ - PEP 561 compliance
+
 # 0.2.1 (2022-07-27)
  - Upgrade Jinja2 dependency to V3
 
