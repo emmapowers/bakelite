@@ -35,7 +35,7 @@ prim_types = {
 }
 
 
-def _map_type(t: ProtoType):
+def _map_type(t: ProtoType) -> str:
   if t.name in prim_types:
     type_name = prim_types[t.name]
   else:
@@ -82,7 +82,7 @@ def _array_postfix(member: ProtoStructMember) -> str:
     return f"[{member.arraySize}]"
 
 
-def overhead(size: int, crc_size: int):
+def overhead(size: int, crc_size: int) -> int:
   cobs_overhead = int((size + 253)/254)
   return cobs_overhead + crc_size + 1
 
@@ -90,14 +90,14 @@ def overhead(size: int, crc_size: int):
 def render(
     enums: List[ProtoEnum],
     structs: List[ProtoStruct],
-    proto: Protocol,
+    proto: Optional[Protocol],
     comments: List[str],
 ) -> str:
 
   enums_types = {enum.name: enum for enum in enums}
   structs_types = {struct.name: struct for struct in structs}
 
-  def _write_type(member: ProtoStructMember):
+  def _write_type(member: ProtoStructMember) -> str:
     if member.arraySize is not None:
       size_arg = f', {member.arraySize}' if member.arraySize > 0 else ''
       tmp_member = copy(member)
@@ -130,7 +130,7 @@ def render(
     else:
       raise RuntimeError(f"Unkown type {member.type.name}")
 
-  def _read_type(member: ProtoStructMember):
+  def _read_type(member: ProtoStructMember) -> str:
     if member.arraySize is not None:
       size_arg = f', {member.arraySize}' if member.arraySize > 0 else ''
       tmp_member = copy(member)
@@ -219,7 +219,7 @@ def render(
 
 
 def runtime() -> str:
-  def include(filename: str):
+  def include(filename: str) -> str:
     with open(
         os.path.join(os.path.dirname(__file__),
                      'runtimes', 'cpptiny', filename), encoding='utf-8') as f:

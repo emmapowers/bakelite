@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from bakelite.proto.serialization import struct, enum
 from bakelite.proto.runtime import Registry, ProtocolBase
-from typing import List
+from typing import Any, List
 
 
 
@@ -34,7 +34,7 @@ class Ack:
 
 
 class Protocol(ProtocolBase):
-  def __init__(self, **kwargs):
+  def __init__(self, **kwargs: Any) -> None:
     super().__init__(
       maxLength="70",
       framing="COBS",

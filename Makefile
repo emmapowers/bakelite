@@ -62,7 +62,7 @@ format: install
 lint: install  ## Run formaters, linters, and static analysis
 	poetry run isort $(PACKAGES) --recursive
 	# poetry run black $(PACKAGES) --check
-	poetry run mypy $(PACKAGES) --config-file=.mypy.ini
+	poetry run mypy $(PACKAGE) --config-file=.mypy.ini
 	poetry run pylint $(PACKAGES) --rcfile=.pylint.ini
 	poetry run pydocstyle $(PACKAGES) $(CONFIG)
 

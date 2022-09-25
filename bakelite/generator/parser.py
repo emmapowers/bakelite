@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple, Type, TypeVar
 
 from lark import Lark
 from lark.visitors import Transformer
@@ -45,35 +45,41 @@ class _ProtoMessageIds:
   ids: List[ProtoMessageId]
 
 
-def _filter(args, class_type):
+TFilter = TypeVar("TFilter", bound=object)
+
+
+def _filter(args: List[Any], class_type: Type[TFilter]) -> List[TFilter]:
   return [v for v in args if isinstance(v, class_type)]
 
 
-def _find_one(args, class_type):
+def _find_one(args: List[Any], class_type: Type[object]) -> Any:
   args = _filter(args, class_type)
   if len(args) == 0:
     return None
   elif len(args) > 1:
     raise RuntimeError(f"Found more than one {class_type}")
 
-  if args[0] and hasattr(args[0], 'value'):
+  if hasattr(args[0], "value"):
     return args[0].value
   else:
     return args[0]
 
 
-def _find_many(args, class_type):
+TMany = TypeVar("TMany")
+
+
+def _find_many(args: List[Any], class_type: Type[TMany]) -> List[TMany]:
   return _filter(args, class_type)
 
 
 class TreeTransformer(Transformer):
-  def array(self, args):
+  def array(self, args: List[Any]) -> _Array:
     if len(args) > 0:
       return _Array(value=int(args[0]))
     else:
       return _Array(value=0)
 
-  def argument_val(self, args):
+  def argument_val(self, args: List[Any]) -> ProtoAnnotationArg:
     if len(args) == 1:
       return ProtoAnnotationArg(name=None, value=str(args[0]))
     elif len(args) == 2:
@@ -81,15 +87,15 @@ class TreeTransformer(Transformer):
     else:
       raise RuntimeError("Argument has more than three args")
 
-  def annotation(self, args):
+  def annotation(self, args: List[Any]) -> ProtoAnnotation:
     return ProtoAnnotation(
         name=str(args[0]), arguments=_find_many(args, ProtoAnnotationArg)
     )
 
-  def comment(self, args):
+  def comment(self, args: List[Any]) -> _Comment:
     return _Comment(value=str(args[0]))
 
-  def enum(self, args):
+  def enum(self, args: List[Any]) -> ProtoEnum:
     return ProtoEnum(
         type=_find_one(args, ProtoType),
         name=_find_one(args, _Name),
@@ -98,7 +104,7 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def enum_value(self, args):
+  def enum_value(self, args: List[Any]) -> ProtoEnumValue:
     return ProtoEnumValue(
         name=_find_one(args, _Name),
         value=_find_one(args, _Value),
@@ -106,22 +112,22 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def name(self, args):
+  def name(self, args: List[Any]) -> _Name:
     return _Name(value=str(args[0]))
 
-  def number(self, args):
+  def number(self, args: List[Any]) -> _Number:
     return _Number(value=int(args[0]))
 
-  def prim(self, args):
+  def prim(self, args: List[Any]) -> ProtoType:
     return ProtoType(name=str(args[0]), size=0)
 
-  def prim_variable(self, args):
+  def prim_variable(self, args: List[Any]) -> ProtoType:
     if len(args) > 1:
       return ProtoType(name=str(args[0]), size=int(args[1]))
     else:
       return ProtoType(name=str(args[0]), size=0)
 
-  def proto(self, args):
+  def proto(self, args: List[Any]) -> Protocol:
     ids = _find_one(args, _ProtoMessageIds)
 
     return Protocol(
@@ -131,7 +137,7 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def proto_message_id(self, args):
+  def proto_message_id(self, args: List[Any]) -> ProtoMessageId:
     return ProtoMessageId(
         name=_find_one(args, _Name),
         number=_find_one(args, _Number),
@@ -139,10 +145,10 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def proto_message_ids(self, args):
+  def proto_message_ids(self, args: List[Any]) -> _ProtoMessageIds:
     return _ProtoMessageIds(ids=_find_many(args, ProtoMessageId))
 
-  def proto_member(self, args):
+  def proto_member(self, args: List[Any]) -> ProtoOption:
     return ProtoOption(
         name=_find_one(args, _Name),
         value=_find_one(args, _Value),
@@ -150,7 +156,7 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def struct(self, args):
+  def struct(self, args: List[Any]) -> ProtoStruct:
     return ProtoStruct(
         name=_find_one(args, _Name),
         members=_find_many(args, ProtoStructMember),
@@ -158,7 +164,7 @@ class TreeTransformer(Transformer):
         annotations=_find_many(args, ProtoAnnotation),
     )
 
-  def struct_member(self, args):
+  def struct_member(self, args: List[Any]) -> ProtoStructMember:
     return ProtoStructMember(
         name=_find_one(args, _Name),
         type=_find_one(args, ProtoType),
@@ -168,10 +174,10 @@ class TreeTransformer(Transformer):
         arraySize=_find_one(args, _Array),
     )
 
-  def value(self, args):
+  def value(self, args: List[Any]) -> _Value:
     return _Value(value=str(args[0]))
 
-  def type(self, args):
+  def type(self, args: List[Any]) -> ProtoType:
     if isinstance(args[0], ProtoType):
       return args[0]
     else:
@@ -179,7 +185,7 @@ class TreeTransformer(Transformer):
 
 
 def validate(enums: List[ProtoEnum], structs: List[ProtoStruct],
-             protocol: Protocol, _comments: List[str]):
+             protocol: Protocol, _comments: List[str]) -> None:
   _enum_map = {enum.name: enum for enum in enums}
   struct_map = {struct.name: struct for struct in structs}
 
@@ -194,7 +200,7 @@ def validate(enums: List[ProtoEnum], structs: List[ProtoStruct],
       raise ValidationError(f"{msg_id.name} assigned a message ID, but not declared")
 
 
-def parse(text: str):
+def parse(text: str) -> Tuple[List[ProtoEnum], List[ProtoStruct], Optional[Protocol], List[str]]:
   global _g_parser
 
   if not _g_parser:

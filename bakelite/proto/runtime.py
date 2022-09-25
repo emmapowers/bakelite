@@ -2,7 +2,7 @@ import struct
 from dataclasses import is_dataclass
 from enum import Enum
 from io import BufferedIOBase, BytesIO
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
 
 from ..generator.types import Protocol
 from .framing import CrcSize, Framer
@@ -13,19 +13,19 @@ class ProtocolError(RuntimeError):
 
 
 class Registry:
-  def __init__(self):
+  def __init__(self) -> None:
     self.types: Dict[str, Any] = {}
 
   def register(self, name: str, cls: Any) -> None:
     self.types[name] = cls
 
-  def get(self, name: str):
+  def get(self, name: str) -> Any:
     return self.types[name]
 
-  def is_enum(self, name: str):
+  def is_enum(self, name: str) -> bool:
     return issubclass(self.types[name], Enum)
 
-  def is_struct(self, name: str):
+  def is_struct(self, name: str) -> bool:
     return is_dataclass(self.types[name])
 
 
@@ -35,7 +35,13 @@ class ProtocolBase:
   _desc: Protocol
   _options: Dict[str, Any]
 
-  def __init__(self, *, stream, registry, desc, crc="CRC8", framer=None, **kwargs):
+  def __init__(self, *,
+               stream: BufferedIOBase,
+               registry: Registry,
+               desc: Union[str, bytes, bytearray],
+               crc: str = "CRC8",
+               framer: Optional[Framer] = None,
+               **kwargs: Any) -> None:
     self._stream = stream
     self._registry = registry
     self._desc = Protocol.from_json(desc)
@@ -63,7 +69,7 @@ class ProtocolBase:
     else:
       self._framer = framer
 
-  def send(self, message):
+  def send(self, message: Any) -> None:
     if not getattr(message, "_desc"):
       raise ProtocolError(f"{type(message)} is not a message type")
 

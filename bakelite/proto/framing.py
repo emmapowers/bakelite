@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Callable, Optional
 
 from .crc import CrcSize, crc_funcs
 
@@ -19,7 +19,7 @@ class CRCCheckFailure(FrameError):
   pass
 
 
-def _append_block(block: bytearray, output: bytearray):
+def _append_block(block: bytearray, output: bytearray) -> None:
   output.append(len(block) + 1)
   output.extend(block)
   block.clear()
@@ -49,7 +49,7 @@ def encode(data: bytes) -> bytes:
   return output
 
 
-def decode(data: bytes):
+def decode(data: bytes) -> bytes:
   output = bytearray()
 
   if not data:
@@ -74,14 +74,14 @@ def decode(data: bytes):
   if output[-1] == 0:
     output.pop()
 
-  return output
+  return bytes(output)
 
 
-def append_crc(data: bytes, crc_size=CrcSize.CRC8):
+def append_crc(data: bytes, crc_size: CrcSize = CrcSize.CRC8) -> bytes:
   return data + crc_funcs[crc_size](data).to_bytes(crc_size.value, byteorder='little')
 
 
-def check_crc(data: bytes, crc_size=CrcSize.CRC8):
+def check_crc(data: bytes, crc_size: CrcSize = CrcSize.CRC8) -> bytes:
   if not data:
     raise CRCCheckFailure()
 
@@ -97,9 +97,9 @@ def check_crc(data: bytes, crc_size=CrcSize.CRC8):
 class Framer:
   def __init__(
       self,
-      encode_fn=encode,
-      decode_fn=decode,
-      crc=CrcSize.CRC8
+      encode_fn: Callable[[bytes], bytes] = encode,
+      decode_fn: Callable[[bytes], bytes] = decode,
+      crc: CrcSize = CrcSize.CRC8
   ):
     self._encode_fn = encode_fn
     self._decode_fn = decode_fn
@@ -107,7 +107,7 @@ class Framer:
     self._buffer = bytearray()
     self._frame = bytearray()
 
-  def encode_frame(self, data: bytes):
+  def encode_frame(self, data: bytes) -> bytes:
     if not data:
       raise EncodeError('data must not be empty')
 
@@ -116,7 +116,7 @@ class Framer:
 
     return b'\x00' + encode(data) + b'\x00'
 
-  def decode_frame(self) -> Optional[bytearray]:
+  def decode_frame(self) -> Optional[bytes]:
     while self._buffer:
       byte = self._buffer.pop(0)
 
@@ -133,14 +133,14 @@ class Framer:
 
     return None
 
-  def clear_buffer(self):
+  def clear_buffer(self) -> None:
     self._buffer.clear()
     self._frame.clear()
 
-  def append_buffer(self, data: bytes):
+  def append_buffer(self, data: bytes) -> None:
     self._buffer.extend(data)
 
-  def _decode_frame_int(self, data):
+  def _decode_frame_int(self, data: bytes) -> bytes:
     data = decode(data)
 
     if self._crc != CrcSize.NO_CRC:

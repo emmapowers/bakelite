@@ -1,4 +1,4 @@
-def to_camel_case(name, first_capital=True):
+def to_camel_case(name: str, first_capital: bool = True) -> str:
   next_upper = False
   result = ""
 
