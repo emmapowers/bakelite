@@ -94,7 +94,7 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
   elif t.name == "string":
     assert t.size is not None
     if not isinstance(value, bytes):
-      raise SerializationError(f'string values must be encoded as bytes')
+      raise SerializationError('string values must be encoded as bytes')
     if len(value) >= t.size:
       raise SerializationError(
           f'value is {len(value)}, but must be no longer than {t.size}, with room for a null byte'

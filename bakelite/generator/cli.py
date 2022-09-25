@@ -4,9 +4,7 @@ import sys
 
 import click
 
-import bakelite.generator.cpptiny as cpptiny
-import bakelite.generator.python as python
-from bakelite.generator import parse
+from bakelite.generator import cpptiny, parse, python
 
 
 @click.group()

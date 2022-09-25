@@ -198,7 +198,7 @@ def parse(text: str):
   global _g_parser
 
   if not _g_parser:
-    with open(f"{os.path.dirname(__file__)}/protodef.lark") as f:
+    with open(f"{os.path.dirname(__file__)}/protodef.lark", encoding='utf-8') as f:
       grammar = f.read()
 
     _g_parser = Lark(grammar)
