@@ -112,7 +112,7 @@ For example, this struct contains three members, each with a different type.
 ```
 struct MyTestStruct {
   a: int32,
-  b: boolean,
+  b: bool,
   c: uint16
 }
 ```
