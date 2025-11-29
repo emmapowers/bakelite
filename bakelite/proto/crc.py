@@ -1,8 +1,12 @@
+"""CRC implementations for bakelite protocols."""
+
+from collections.abc import Callable
 from enum import Enum
 
 
 # polynomial: 0x107
 def crc8(data: bytes) -> int:
+    """Calculate CRC-8 checksum."""
     table = [
         0x00,
         0x07,
@@ -270,9 +274,8 @@ def crc8(data: bytes) -> int:
 
 
 # polynomial: 0x18005, bit reverse algorithm
-
-
 def crc16(data: bytes) -> int:
+    """Calculate CRC-16 checksum."""
     table = [
         0x0000,
         0xC0C1,
@@ -540,9 +543,8 @@ def crc16(data: bytes) -> int:
 
 
 # polynomial: 0x104C11DB7, bit reverse algorithm
-
-
 def crc32(data: bytes) -> int:
+    """Calculate CRC-32 checksum."""
     table = [
         0x00000000,
         0x77073096,
@@ -811,13 +813,15 @@ def crc32(data: bytes) -> int:
 
 
 class CrcSize(Enum):
+    """CRC size options."""
+
     NO_CRC = 0
     CRC8 = 1
     CRC16 = 2
     CRC32 = 4
 
 
-crc_funcs = {
+crc_funcs: dict[CrcSize, Callable[[bytes], int]] = {
     CrcSize.CRC8: crc8,
     CrcSize.CRC16: crc16,
     CrcSize.CRC32: crc32,

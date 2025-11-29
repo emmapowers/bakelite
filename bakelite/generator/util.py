@@ -13,9 +13,6 @@ def to_camel_case(name: str, first_capital: bool = True) -> str:
 
         result += c
 
-    if first_capital:
-        result = result[0].upper() + result[1:]
-    else:
-        result = result[0].lower() + result[1:]
+    result = result[0].upper() + result[1:] if first_capital else result[0].lower() + result[1:]
 
     return result

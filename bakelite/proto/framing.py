@@ -1,22 +1,24 @@
-from typing import Callable, Optional
+"""COBS framing and CRC support for bakelite protocols."""
+
+from collections.abc import Callable
 
 from .crc import CrcSize, crc_funcs
 
 
 class FrameError(RuntimeError):
-    pass
+    """Base exception for framing errors."""
 
 
 class EncodeError(FrameError):
-    pass
+    """Raised when frame encoding fails."""
 
 
 class DecodeError(FrameError):
-    pass
+    """Raised when frame decoding fails."""
 
 
 class CRCCheckFailure(FrameError):
-    pass
+    """Raised when CRC validation fails."""
 
 
 def _append_block(block: bytearray, output: bytearray) -> None:
@@ -26,6 +28,7 @@ def _append_block(block: bytearray, output: bytearray) -> None:
 
 
 def encode(data: bytes) -> bytes:
+    """Encode data using COBS (Consistent Overhead Byte Stuffing)."""
     block = bytearray()
     output = bytearray()
     full_block = False
@@ -46,10 +49,11 @@ def encode(data: bytes) -> bytes:
     if not full_block:
         _append_block(block, output)
 
-    return output
+    return bytes(output)
 
 
 def decode(data: bytes) -> bytes:
+    """Decode COBS-encoded data."""
     output = bytearray()
 
     if not data:
@@ -78,10 +82,12 @@ def decode(data: bytes) -> bytes:
 
 
 def append_crc(data: bytes, crc_size: CrcSize = CrcSize.CRC8) -> bytes:
+    """Append a CRC checksum to data."""
     return data + crc_funcs[crc_size](data).to_bytes(crc_size.value, byteorder="little")
 
 
 def check_crc(data: bytes, crc_size: CrcSize = CrcSize.CRC8) -> bytes:
+    """Verify and strip CRC checksum from data."""
     if not data:
         raise CRCCheckFailure()
 
@@ -95,12 +101,14 @@ def check_crc(data: bytes, crc_size: CrcSize = CrcSize.CRC8) -> bytes:
 
 
 class Framer:
+    """Handles framing and deframing of protocol messages."""
+
     def __init__(
         self,
         encode_fn: Callable[[bytes], bytes] = encode,
         decode_fn: Callable[[bytes], bytes] = decode,
         crc: CrcSize = CrcSize.CRC8,
-    ):
+    ) -> None:
         self._encode_fn = encode_fn
         self._decode_fn = decode_fn
         self._crc = crc
@@ -108,6 +116,7 @@ class Framer:
         self._frame = bytearray()
 
     def encode_frame(self, data: bytes) -> bytes:
+        """Encode a frame with framing and optional CRC."""
         if not data:
             raise EncodeError("data must not be empty")
 
@@ -116,14 +125,14 @@ class Framer:
 
         return b"\x00" + encode(data) + b"\x00"
 
-    def decode_frame(self) -> Optional[bytes]:
+    def decode_frame(self) -> bytes | None:
+        """Attempt to decode a complete frame from the buffer."""
         while self._buffer:
             byte = self._buffer.pop(0)
 
             if byte == 0:
                 if self._frame:
                     try:
-
                         decoded = self._decode_frame_int(self._frame)
                         return decoded
                     finally:
@@ -134,10 +143,12 @@ class Framer:
         return None
 
     def clear_buffer(self) -> None:
+        """Clear the receive buffer."""
         self._buffer.clear()
         self._frame.clear()
 
     def append_buffer(self, data: bytes) -> None:
+        """Append data to the receive buffer."""
         self._buffer.extend(data)
 
     def _decode_frame_int(self, data: bytes) -> bytes:
