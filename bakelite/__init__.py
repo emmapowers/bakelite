@@ -1,7 +1,8 @@
-from pkg_resources import DistributionNotFound, get_distribution
+"""Bakelite - Protocol code generator for embedded systems."""
 
+from importlib.metadata import PackageNotFoundError, version
 
 try:
-  __version__ = get_distribution('bakelite').version
-except DistributionNotFound:
-  __version__ = '(local)'
+    __version__ = version("bakelite")
+except PackageNotFoundError:
+    __version__ = "(local)"

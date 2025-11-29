@@ -1,103 +1,132 @@
+"""Type definitions for protocol parsing and code generation."""
+
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any
 
 from dataclasses_json import DataClassJsonMixin
 
 
 @dataclass
 class ProtoType(DataClassJsonMixin):
-  name: str
-  size: Optional[int]
+    """Represents a primitive or user-defined type."""
+
+    name: str
+    size: int | None
 
 
 @dataclass
 class ProtoAnnotationArg(DataClassJsonMixin):
-  name: Optional[str]
-  value: Any
+    """Represents an argument to an annotation."""
+
+    name: str | None
+    value: Any
 
 
 @dataclass
 class ProtoAnnotation(DataClassJsonMixin):
-  name: str
-  arguments: List[ProtoAnnotationArg]
+    """Represents an annotation on a protocol element."""
+
+    name: str
+    arguments: list[ProtoAnnotationArg]
 
 
 @dataclass
 class ProtoEnumValue(DataClassJsonMixin):
-  name: str
-  value: Any
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents a single enum value."""
+
+    name: str
+    value: Any
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
 @dataclass
 class ProtoEnum(DataClassJsonMixin):
-  values: List[ProtoEnumValue]
-  type: ProtoType
-  name: str
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents an enum type definition."""
+
+    values: list[ProtoEnumValue]
+    type: ProtoType
+    name: str
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
 @dataclass
 class ProtoStructMember(DataClassJsonMixin):
-  type: ProtoType
-  name: str
-  value: Optional[Any]
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
-  arraySize: Optional[int]
+    """Represents a member of a struct."""
+
+    type: ProtoType
+    name: str
+    value: Any | None
+    comment: str | None
+    annotations: list[ProtoAnnotation]
+    array_size: int | None
 
 
 @dataclass
 class ProtoStruct(DataClassJsonMixin):
-  members: List[ProtoStructMember]
-  name: str
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents a struct type definition."""
+
+    members: list[ProtoStructMember]
+    name: str
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
 @dataclass
 class ProtoOption(DataClassJsonMixin):
-  name: str
-  value: Any
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents a protocol option."""
+
+    name: str
+    value: Any
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
 @dataclass
 class ProtoMessageId(DataClassJsonMixin):
-  name: str
-  number: int
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents a message ID assignment."""
+
+    name: str
+    number: int
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
 @dataclass
 class Protocol(DataClassJsonMixin):
-  options: List[ProtoOption]
-  message_ids: List[ProtoMessageId]
-  comment: Optional[str]
-  annotations: List[ProtoAnnotation]
+    """Represents a complete protocol definition."""
+
+    options: list[ProtoOption]
+    message_ids: list[ProtoMessageId]
+    comment: str | None
+    annotations: list[ProtoAnnotation]
 
 
-def primitive_types() -> List[str]:
-  return [
-      "bool",
-      "int8",
-      "int16",
-      "int32",
-      "int64",
-      "uint8",
-      "uint16",
-      "uint32",
-      "uint64",
-      "float32",
-      "float64",
-      "bytes",
-      "string",
-  ]
+PRIMITIVE_TYPES = frozenset(
+    [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "float32",
+        "float64",
+        "bytes",
+        "string",
+    ]
+)
+
+
+def primitive_types() -> list[str]:
+    """Return a list of primitive type names."""
+    return list(PRIMITIVE_TYPES)
 
 
 def is_primitive(t: ProtoType) -> bool:
-  return t.name in primitive_types()
+    """Check if a type is a primitive type."""
+    return t.name in PRIMITIVE_TYPES

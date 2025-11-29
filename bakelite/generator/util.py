@@ -1,21 +1,18 @@
 def to_camel_case(name: str, first_capital: bool = True) -> str:
-  next_upper = False
-  result = ""
+    next_upper = False
+    result = ""
 
-  for c in name:
-    if c == '_':
-      next_upper = True
-      continue
+    for c in name:
+        if c == "_":
+            next_upper = True
+            continue
 
-    if next_upper:
-      c = c.upper()
-      next_upper = False
+        if next_upper:
+            c = c.upper()
+            next_upper = False
 
-    result += c
+        result += c
 
-  if first_capital:
-    result = result[0].upper() + result[1:]
-  else:
-    result = result[0].lower() + result[1:]
+    result = result[0].upper() + result[1:] if first_capital else result[0].lower() + result[1:]
 
-  return result
+    return result
