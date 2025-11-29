@@ -1,88 +1,65 @@
 """Generated protocol definitions."""
 % if runtime_import == "bakelite_runtime"
 {{ BLANK_LINE }}
+import struct as _struct
 import sys
 from dataclasses import dataclass
 % if enums
 from enum import Enum
 % endif
 from pathlib import Path
-% if proto
-from typing import Any
-% endif
+from typing import ClassVar, Self
 {{ BLANK_LINE }}
 _runtime_path = str(Path(__file__).parent)
 _added_to_path = _runtime_path not in sys.path
 if _added_to_path:
     sys.path.insert(0, _runtime_path)
 try:
-    from bakelite_runtime.runtime import ProtocolBase, Registry
-    from bakelite_runtime.serialization import {{ "enum, " if enums }}struct
-    from bakelite_runtime.types import (
-% if enums
-        ProtoEnumDescriptor,
-% endif
+    from bakelite_runtime.serialization import BakeliteEnum, SerializationError, Struct, bakelite_field
 % if proto
-        ProtocolDescriptor,
-        ProtoMessageId,
+    from bakelite_runtime.runtime import ProtocolBase
 % endif
-        ProtoStruct,
-        ProtoStructMember,
-        ProtoType,
-    )
 finally:
     if _added_to_path:
         sys.path.remove(_runtime_path)
 % else
 {{ BLANK_LINE }}
+import struct as _struct
 from dataclasses import dataclass
 % if enums
 from enum import Enum
 % endif
-% if proto
-from typing import Any
-% endif
+from typing import ClassVar, Self
 {{ BLANK_LINE }}
-from {{ runtime_import }}.runtime import ProtocolBase, Registry
-from {{ runtime_import }}.serialization import {{ "enum, " if enums }}struct
-from {{ runtime_import }}.types import (
-% if enums
-    ProtoEnumDescriptor,
-% endif
+from {{ runtime_import }}.serialization import BakeliteEnum, SerializationError, Struct, bakelite_field
 % if proto
-    ProtocolDescriptor,
-    ProtoMessageId,
+from {{ runtime_import }}.runtime import ProtocolBase
 % endif
-    ProtoStruct,
-    ProtoStructMember,
-    ProtoType,
-)
 % endif
 % for comment in comments:
 #{{ comment }}
 % endfor
-{{ BLANK_LINE }}
-registry = Registry()
 % for e in enums
 {{ BLANK_LINE }}
 {{ BLANK_LINE }}
 % if e.comment
 # {{ e.comment }}
 % endif
-@enum(
-    registry,
-    ProtoEnumDescriptor(
-        name="{{ e.name }}",
-        type=ProtoType(name="{{ e.type.name }}"{{ ', size=' + (e.type.size | string) if e.type.size is not none }}),
-    ),
-)
-class {{ e.name }}(Enum):
+class {{ e.name }}(BakeliteEnum):
+    bakelite_type: ClassVar[str] = "{{ e.type.name }}"
     % for value in e.values:
     % if value.comment
     #{{ value.comment }}
     % endif
     {{ value.name }} = {{ value.value }}
     % endfor
+{{ BLANK_LINE }}
+    def pack(self) -> bytes:
+        return _struct.pack("={{ format_char(e.type) }}", self.value)
+{{ BLANK_LINE }}
+    @classmethod
+    def unpack(cls, data: bytes | memoryview, offset: int = 0) -> tuple[Self, int]:
+        return cls(_struct.unpack_from("={{ format_char(e.type) }}", data, offset)[0]), {{ type_size(e.type) }}
 % endfor
 % for s in structs
 {{ BLANK_LINE }}
@@ -90,46 +67,62 @@ class {{ e.name }}(Enum):
 % if s.comment
 # {{ s.comment }}
 % endif
-@struct(
-    registry,
-    ProtoStruct(
-        name="{{ s.name }}",
-        members=(
-            % for member in s.members:
-            ProtoStructMember(
-                type=ProtoType(name="{{ member.type.name }}"{{ ', size=' + (member.type.size | string) if member.type.size is not none }}),
-                name="{{ member.name }}",{{ ' array_size=' + (member.array_size | string) + ',' if member.array_size is not none }}
-            ),
-            % endfor
-        ),
-    ),
-)
 @dataclass
-class {{ s.name }}:
+class {{ s.name }}(Struct):
     % for member in s.members:
     % if member.comment
     #{{ member.comment }}
     % endif
-    {{ member.name }}: {{map_type(member)}}{{ ' = ' + member.value if member.value }}
+    % if is_primitive(member.type)
+    {{ member.name }}: {{ map_type(member) }} = bakelite_field(type="{{ member.type.name }}"{{ field_args(member) }})
+    % else
+    {{ member.name }}: {{ map_type(member) }}
+    % endif
     % endfor
+{{ BLANK_LINE }}
+    def pack(self) -> bytes:
+        _buf = bytearray()
+        % for batch_type, batch_members in batch_members(s.members):
+        % if batch_type == "primitive"
+        {{ gen_pack_batch(batch_members) | indent(8) }}
+        % else
+        {{ gen_pack_field(batch_members[0]) | indent(8) }}
+        % endif
+        % endfor
+        return bytes(_buf)
+{{ BLANK_LINE }}
+    @classmethod
+    def unpack(cls, _data: bytes | memoryview, offset: int = 0) -> tuple[Self, int]:
+        _o = offset
+        % for batch_type, batch_members in batch_members(s.members):
+        % if batch_type == "primitive"
+        {{ gen_unpack_batch(batch_members) | indent(8) }}
+        % else
+        {{ gen_unpack_field(batch_members[0]) | indent(8) }}
+        % endif
+        % endfor
+        return cls({{ s.members | map(attribute='name') | join(', ') }}), _o - offset
 % endfor
 % if proto
 {{ BLANK_LINE }}
 {{ BLANK_LINE }}
 class Protocol(ProtocolBase):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(
-            % for option in proto.options:
-            {{option.name}}="{{option.value}}",
-            % endfor
-            registry=registry,
-            desc=ProtocolDescriptor(
-                message_ids=(
-                    % for msg in proto.message_ids:
-                    ProtoMessageId(name="{{ msg.name }}", number={{ msg.number }}),
-                    % endfor
-                ),
-            ),
-            **kwargs,
-        )
+    _message_types: ClassVar[dict[int, type[Struct]]] = {
+        % for msg in proto.message_ids:
+        {{ msg.number }}: {{ msg.name }},
+        % endfor
+    }
+    _message_ids: ClassVar[dict[str, int]] = {
+        % for msg in proto.message_ids:
+        "{{ msg.name }}": {{ msg.number }},
+        % endfor
+    }
+{{ BLANK_LINE }}
+    def __init__(self, **kwargs) -> None:
+        % for option in proto.options:
+        % if option.name == "crc"
+        kwargs.setdefault("crc", "{{ option.value }}")
+        % endif
+        % endfor
+        super().__init__(**kwargs)
 % endif
