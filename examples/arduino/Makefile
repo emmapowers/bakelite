@@ -3,7 +3,7 @@ gen: proto.h proto.py
 proto.h: proto.bakelite bakelite.h
 	bakelite gen -l cpptiny -i proto.bakelite -o proto.h
 
-proto.py: proto.bakelite
+proto.py: proto.bakelite bakelite_runtime
 	bakelite gen -l python -i proto.bakelite -o proto.py
 
 bakelite.h:

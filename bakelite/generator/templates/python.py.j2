@@ -1,70 +1,135 @@
+"""Generated protocol definitions."""
+% if runtime_import == "bakelite_runtime"
+{{ BLANK_LINE }}
+import sys
 from dataclasses import dataclass
+% if enums
 from enum import Enum
-from bakelite.proto.serialization import struct, enum
-from bakelite.proto.runtime import Registry, ProtocolBase
-from typing import Any, List
-
-{{""}}
-{{""}}
-
+% endif
+from pathlib import Path
+% if proto
+from typing import Any
+% endif
+{{ BLANK_LINE }}
+_runtime_path = str(Path(__file__).parent)
+_added_to_path = _runtime_path not in sys.path
+if _added_to_path:
+    sys.path.insert(0, _runtime_path)
+try:
+    from bakelite_runtime.runtime import ProtocolBase, Registry
+    from bakelite_runtime.serialization import {{ "enum, " if enums }}struct
+    from bakelite_runtime.types import (
+% if enums
+        ProtoEnumDescriptor,
+% endif
+% if proto
+        ProtocolDescriptor,
+        ProtoMessageId,
+% endif
+        ProtoStruct,
+        ProtoStructMember,
+        ProtoType,
+    )
+finally:
+    if _added_to_path:
+        sys.path.remove(_runtime_path)
+% else
+{{ BLANK_LINE }}
+from dataclasses import dataclass
+% if enums
+from enum import Enum
+% endif
+% if proto
+from typing import Any
+% endif
+{{ BLANK_LINE }}
+from {{ runtime_import }}.runtime import ProtocolBase, Registry
+from {{ runtime_import }}.serialization import {{ "enum, " if enums }}struct
+from {{ runtime_import }}.types import (
+% if enums
+    ProtoEnumDescriptor,
+% endif
+% if proto
+    ProtocolDescriptor,
+    ProtoMessageId,
+% endif
+    ProtoStruct,
+    ProtoStructMember,
+    ProtoType,
+)
+% endif
 % for comment in comments:
 #{{ comment }}
 % endfor
-
-{{""}}
-
+{{ BLANK_LINE }}
 registry = Registry()
-
-{{""}}
-{{""}}
-
-% for enum in enums
-% if enum.comment
-# {{ enum.comment }}
+% for e in enums
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
+% if e.comment
+# {{ e.comment }}
 % endif
-@enum(registry, r'''{{to_desc(enum)}}''')
-class {{ enum.name }}(Enum):
-  % for value in enum.values:
-  % if value.comment
-  #{{ value.comment }}
-  % endif
-  {{ value.name }} = {{ value.value }}
-  % endfor
-  {{""}}
-  {{""}}
+@enum(
+    registry,
+    ProtoEnumDescriptor(
+        name="{{ e.name }}",
+        type=ProtoType(name="{{ e.type.name }}"{{ ', size=' + (e.type.size | string) if e.type.size is not none }}),
+    ),
+)
+class {{ e.name }}(Enum):
+    % for value in e.values:
+    % if value.comment
+    #{{ value.comment }}
+    % endif
+    {{ value.name }} = {{ value.value }}
+    % endfor
 % endfor
-
-% for struct in structs
-% if struct.comment
-# {{ struct.comment }}
+% for s in structs
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
+% if s.comment
+# {{ s.comment }}
 % endif
-@struct(registry, r'''{{to_desc(struct)}}''')
+@struct(
+    registry,
+    ProtoStruct(
+        name="{{ s.name }}",
+        members=(
+            % for member in s.members:
+            ProtoStructMember(
+                type=ProtoType(name="{{ member.type.name }}"{{ ', size=' + (member.type.size | string) if member.type.size is not none }}),
+                name="{{ member.name }}",{{ ' array_size=' + (member.array_size | string) + ',' if member.array_size is not none }}
+            ),
+            % endfor
+        ),
+    ),
+)
 @dataclass
-class {{ struct.name }}:
-  % for member in struct.members:
-  % if member.comment
-  #{{ member.comment }}
-  % endif
-  {{ member.name }}: {{map_type(member)}}{{ ' = ' + member.value if member.value }}
-  % endfor
-  {{""}}
-  {{""}}
+class {{ s.name }}:
+    % for member in s.members:
+    % if member.comment
+    #{{ member.comment }}
+    % endif
+    {{ member.name }}: {{map_type(member)}}{{ ' = ' + member.value if member.value }}
+    % endfor
 % endfor
-
-{{""}}
-{{""}}
-
-%if proto
-
+% if proto
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
 class Protocol(ProtocolBase):
-  def __init__(self, **kwargs: Any) -> None:
-    super().__init__(
-      % for option in proto.options:
-      {{option.name}}="{{option.value}}",
-      % endfor
-      registry=registry,
-      desc=r'''{{to_desc(proto)}}''',
-      **kwargs
-    )
-
-%endif
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(
+            % for option in proto.options:
+            {{option.name}}="{{option.value}}",
+            % endfor
+            registry=registry,
+            desc=ProtocolDescriptor(
+                message_ids=(
+                    % for msg in proto.message_ids:
+                    ProtoMessageId(name="{{ msg.name }}", number={{ msg.number }}),
+                    % endfor
+                ),
+            ),
+            **kwargs,
+        )
+% endif
