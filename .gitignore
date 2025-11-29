@@ -47,3 +47,14 @@ Icon*
 .settings
 .DS_Store
 .vscode/
+
+# Pixi
+/.pixi/
+
+# Temporary development files
+/crc.c
+/gen.py
+/CHANGELOG_DRAFT.md
+
+# Generated runtime in examples
+examples/*/bakelite_runtime/

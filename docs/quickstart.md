@@ -2,7 +2,7 @@
 
 ## Install Bakelite
 
-Bakelite requires Python 3.8 or above.
+Bakelite requires Python 3.13+.
 
 Install it via pip.
 ```bash
@@ -43,5 +43,6 @@ $ bakelite runtime -l cpptiny -o bakelite.h
 $ bakelite gen -l cpptiny -i my_proto.bakelite -o my_proto.h
 
 # Generate Python code
+$ bakelite runtime -l python
 $ bakelite gen -l python -i my_proto.bakelite -o my_proto.py
 ```
