@@ -1,4 +1,3 @@
-
 gen: proto.h proto.py
 
 proto.h: proto.bakelite bakelite.h
@@ -13,5 +12,8 @@ bakelite.h:
 bakelite_runtime:
 	bakelite runtime -l python
 
+build: gen
+	pio run
+
 clean:
-	rm -rf proto.h proto.py bakelite.h bakelite_runtime
+	rm -rf proto.h proto.py bakelite.h bakelite_runtime .pio *.ino.cpp
