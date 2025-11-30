@@ -25,7 +25,15 @@ def cli() -> None:
     default=None,
     help="Import path for runtime. No value=bakelite.proto, omit=runtime",
 )
-def gen(language: str, input_file: str, output_file: str, runtime_import: str | None) -> None:
+@click.option(
+    "--unpacked",
+    is_flag=True,
+    default=False,
+    help="Generate aligned structs with memmove shuffle (for Cortex-M0, RISC-V, ESP32, PIC32)",
+)
+def gen(
+    language: str, input_file: str, output_file: str, runtime_import: str | None, unpacked: bool
+) -> None:
     """Generate protocol code from a definition file."""
     with open(input_file, encoding="utf-8") as f:
         proto = f.read()
@@ -37,7 +45,7 @@ def gen(language: str, input_file: str, output_file: str, runtime_import: str | 
         import_path = runtime_import if runtime_import is not None else "bakelite_runtime"
         generated_file = python.render(*proto_def, runtime_import=import_path)
     elif language == "cpptiny":
-        generated_file = cpptiny.render(*proto_def)
+        generated_file = cpptiny.render(*proto_def, unpacked=unpacked)
     else:
         print(f"Unknown language: {language}")
         sys.exit(1)
