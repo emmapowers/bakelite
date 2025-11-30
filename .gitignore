@@ -58,3 +58,7 @@ Icon*
 
 # Generated runtime in examples
 examples/*/bakelite_runtime/
+
+# PlatformIO
+.pio/
+*.ino.cpp
