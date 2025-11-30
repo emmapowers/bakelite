@@ -1,5 +1,5 @@
 /*
- * The code in this file is Copyright (c) Emma Powers 2021,
+ * The code in this file is Copyright (c) Emma Powers 2021-2025,
  * unless otherwise marked. This software is made available
  * under the terms of the MIT License, which can be found at the
  * bottom of this file.
