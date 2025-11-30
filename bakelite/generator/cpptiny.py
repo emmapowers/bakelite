@@ -206,12 +206,15 @@ def render(
 
 def runtime() -> str:
     """Generate the C++ runtime support code."""
+    runtimes_dir = os.path.join(os.path.dirname(__file__), "runtimes")
 
     def include(filename: str) -> str:
-        with open(
-            os.path.join(os.path.dirname(__file__), "runtimes", "cpptiny", filename),
-            encoding="utf-8",
-        ) as f:
+        # Support both cpptiny/ and common/ subdirectories
+        if filename.startswith("common/"):
+            filepath = os.path.join(runtimes_dir, filename)
+        else:
+            filepath = os.path.join(runtimes_dir, "cpptiny", filename)
+        with open(filepath, encoding="utf-8") as f:
             return f.read()
 
     runtime_template = env.get_template("cpptiny-bakelite.h.j2")
