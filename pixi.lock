@@ -507,7 +507,7 @@ packages:
 - pypi: .
   name: bakelite
   version: 0.4.0
-  sha256: a7db9304f8c0b20cfe1a4576bd9eebed6a4b0a951a71d03e9fd6cac2aacdecb8
+  sha256: d9a55530b2cf8e139cb98ac773683a87b62db2cc03469d1f7ef35e7f350a6416
   requires_dist:
   - lark>=1.0
   - jinja2>=3
