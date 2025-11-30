@@ -9,8 +9,7 @@ using namespace Bakelite;
 
 class TestStream {
 public:
-  TestStream(char *buff, uint32_t size,
-                char *heap = nullptr, uint32_t heapSize = 0):
+  TestStream(char *buff, uint32_t size):
     m_buff(buff),
     m_size(size)
   {}
@@ -125,8 +124,8 @@ TEST_CASE("Proto send larger message") {
   strncpy(input.message, text, 16);
   protocol.send(input);
 
-  CHECK(stream.pos() == 26);
-  CHECK(stream.hex() == "0701222efbffff0d48656c6c6f20576f726c6421010101026200");
+  CHECK(stream.pos() == 23);
+  CHECK(stream.hex() == "0701222efbffff0d48656c6c6f20576f726c6421021500");
 
   size_t length = stream.pos();
   stream.seek(0);
@@ -171,7 +170,7 @@ TEST_CASE("Proto decode wrong message") {
   CHECK(protocol.decode(result) == -1);
 }
 
-TEST_CASE("Proto recieve no dynamic memory") {
+TEST_CASE("Proto recieve array message") {
   stream.reset();
   Protocol protocol(
     []() { return stream.read(); },
@@ -180,8 +179,7 @@ TEST_CASE("Proto recieve no dynamic memory") {
 
   ArrayMessage msg;
   int32_t numbers[3] = {1234, -1234, 456};
-  msg.numbers.data = numbers;
-  msg.numbers.size = 3;
+  msg.numbers.assign(numbers, 3);
   protocol.send(msg);
 
   CHECK(stream.pos() == 17);
@@ -197,41 +195,11 @@ TEST_CASE("Proto recieve no dynamic memory") {
   REQUIRE(msgId == Protocol::Message::ArrayMessage);
 
   ArrayMessage result;
-  CHECK(protocol.decode(result) == -4);
-}
-
-TEST_CASE("Proto recieve dynamic") {
-  stream.reset();
-  Protocol protocol(
-    []() { return stream.read(); },
-    [](const char *data, size_t length) { return stream.write(data, length); }
-  );
-
-  ArrayMessage msg;
-  int32_t numbers[3] = {1234, -1234, 456};
-  msg.numbers.data = numbers;
-  msg.numbers.size = 3;
-  protocol.send(msg);
-
-  CHECK(stream.pos() == 17);
-  CHECK(stream.hex() == "050303d20401072efbffffc8010102bb00");
-
-  size_t length = stream.pos();
-  stream.seek(0);
-
-  for(;stream.pos() < length - 1;) {
-    CHECK(protocol.poll() == Protocol::Message::NoMessage);
-  }
-  auto msgId = protocol.poll();
-  REQUIRE(msgId == Protocol::Message::ArrayMessage);
-
-  ArrayMessage result;
-  char buffer[16];
-  CHECK(protocol.decode(result, buffer, sizeof(buffer)) == 0);
-  CHECK(result.numbers.size == 3);
-  CHECK(result.numbers.data[0] == 1234);
-  CHECK(result.numbers.data[1] == -1234);
-  CHECK(result.numbers.data[2] == 456);
+  CHECK(protocol.decode(result) == 0);
+  CHECK(result.numbers.size() == 3);
+  CHECK(result.numbers[0] == 1234);
+  CHECK(result.numbers[1] == -1234);
+  CHECK(result.numbers[2] == 456);
 }
 
 // Convenience test for checking memory overhead

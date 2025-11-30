@@ -55,7 +55,8 @@ def describe_serialization():
 
         packed = test_struct.pack()
         print(packed.hex())
-        expect(packed) == bytes.fromhex("052efbffff1fd204a4709dbf010100010203046865790000")
+        # bytes[4] now has length prefix, string is null-terminated
+        expect(packed) == bytes.fromhex("052efbffff1fd204a4709dbf010100040102030468657900")
 
         new_struct, consumed = TestStruct.unpack(packed)
         expect(consumed) == len(packed)
@@ -130,7 +131,11 @@ def describe_serialization():
             c=["abc", "def", "ghi"],
         )
         packed = test_struct.pack()
-        expect(packed) == bytes.fromhex("0203017f40616263006465660067686900")
+        # All arrays now have length prefixes
+        # 03 = len(a), 02 03 01 = Direction values
+        # 02 = len(b), 7f 40 = Ack values
+        # 03 = len(c), then 3 null-terminated strings
+        expect(packed) == bytes.fromhex("03020301027f4003616263006465660067686900")
 
         recovered, consumed = ArrayStruct.unpack(packed)
         expect(recovered) == ArrayStruct(

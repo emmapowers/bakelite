@@ -12,331 +12,83 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef __AVR__
 #include <avr/pgmspace.h>
 #endif
 
-namespace Bakelite {
-  /*
-  *
-  *  Pre-Declarations
-  *
-  */
-  // Pre-declarations of COBS functions
-struct cobs_encode_result;
-struct cobs_decode_result
-{
-    size_t              out_len;
-    int                 status;
-};
-static cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
-                                const void *src_ptr, size_t src_len);
-static cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
-                                const void *src_ptr, size_t src_len);
-
-  /*
-  *
-  *  Serializer
-  *
-  */
-  template <typename T, typename S = uint8_t>
-struct SizedArray {
-  T *data = nullptr;
-  S size = 0;
-
-  const T &at(size_t pos) const {
-    return data[pos];
-  }
-};
-
-class BufferStream {
-public:
-  BufferStream(char *buff, uint32_t size,
-                char *heap = nullptr, uint32_t heapSize = 0):
-    m_buff(buff),
-    m_size(size),
-    m_pos(0),
-    m_heap(heap),
-    m_heapPos(0),
-    m_heapSize(heapSize)
-  {}
-
-  int write(const char *data, uint32_t length) {
-    uint32_t endPos = m_pos + length;
-    if(endPos > m_size) {
-      return -1;
-    }
-
-    memcpy(m_buff+m_pos, data, length);
-    m_pos += length;
-
-    return 0;
-  }
-
-  int read(char *data, uint32_t length) {
-    uint32_t endPos = m_pos + length;
-    if(endPos > m_size) {
-      return -2;
-    }
-
-    memcpy(data, m_buff+m_pos, length);
-    m_pos += length;
-
-    return 0;
-  }
-
-  int seek(uint32_t pos) {
-    if(pos >= m_size) {
-      return -3;
-    }
-    else {
-      m_pos = pos;
-    }
-    return 0;
-  }
-
-  uint32_t size() const {
-    return m_size;
-  }
-
-  uint32_t pos() const {
-    return m_pos;
-  }
-
-  char *alloc(size_t bytes) {
-    size_t newPos = m_heapPos + bytes;
-    if(newPos >= m_heapSize)
-      return nullptr;
-
-    char *data = &m_heap[m_heapPos];
-    m_heapPos = newPos;
-    return data;
-  }
-
-private:
-  char *m_buff;
-  size_t m_size;
-  size_t m_pos;
-  
-  char *m_heap;
-  size_t m_heapPos;
-  size_t m_heapSize;
-};
-
-template <class T, class V>
-int write(T& stream, V val) {
-  return stream.write((const char *)&val, sizeof(val));
-}
-
-template <class T, class V, class F>
-int writeArray(T& stream, const V *val, int size, F writeCb) {
-  for(int i = 0; i < size; i++) {
-    int rcode = writeCb(stream, val[i]);
-    if(rcode != 0)
-      return rcode;
-  }
-  return 0;
-}
-
-template <class T, class V, class F>
-int writeArray(T& stream, const SizedArray<V> &val, F writeCb) {
-  write(stream, val.size);
-  for(int i = 0; i < val.size; i++) {
-    int rcode = writeCb(stream, val.at(i));
-    if(rcode != 0)
-      return rcode;
-  }
-  return 0;
-}
-
-template <class T>
-int writeBytes(T& stream, const char *val, int size) {
-  return stream.write((const char *)val, size);
-}
-
-template <class T>
-int writeBytes(T& stream, const SizedArray<char> &val) {
-  int rcode = write(stream, val.size);
-  return stream.write((const char *)val.data, val.size);
-}
-
-template <class T>
-int writeString(T& stream, const char *val, int size) {
-  return stream.write(val, size);
-}
-
-template <class T>
-int writeString(T& stream, const char *val) {
-  if(val == nullptr) {
-    return write(stream, (uint8_t)0);
-  }
-
-  uint8_t len = strlen(val);
-  int rcode = stream.write(val, len);
-  if(rcode != 0)
-    return rcode;
-  return write(stream, (uint8_t)0);
-}
-
-template <class T, class V>
-int read(T& stream, V &val) {
-  return stream.read((char *)&val, sizeof(val));
-}
-
-template <class T, class V, class F>
-int readArray(T& stream, V val[], int size, F readCb) {
-  for(int i = 0; i < size; i++) {
-    int rcode = readCb(stream, val[i]);
-    if(rcode != 0)
-      return rcode;
-  }
-  return 0;
-}
-
-template <class T, class V, class F, class S = uint8_t>
-int readArray(T& stream, SizedArray<V, S> &val, F readCb) {
-  S size = 0;
-  int rcode = read(stream, size);
-  if(rcode != 0)
-      return rcode;
-
-  val.data = (V*)stream.alloc(sizeof(V) * size);
-  val.size = size;
-
-  if(val.data == nullptr) {
-    return -4;
-  }
-
-  for(int i = 0; i < size; i++) {
-    int rcode = readCb(stream, val.data[i]);
-    if(rcode != 0)
-      return rcode;
-  }
-  return 0;
-}
-
-template <class T>
-int readBytes(T& stream, char *val, int size) {
-  return stream.read(val, size);
-}
-
-template <class T, typename S = uint8_t>
-int readBytes(T& stream, SizedArray<char, S> &val) {
-  S size = 0;
-  int rcode = read(stream, size);
-  if(rcode != 0)
-      return rcode;
-
-  val.data = stream.alloc(size);
-  val.size = size;
-
-  if(val.data == nullptr) {
-    return -5;
-  }
-
-  return stream.read(val.data, val.size);
-}
-
-template <class T>
-int readString(T& stream, char *val, int size) {
-  return stream.read(val, size);
-}
-
-template <class T>
-int readString(T& stream, char* &val) {
-  char *newByte = stream.alloc(1);
-  val = newByte;
-
-  do {
-    int rcode = stream.read(newByte, 1);
-    if(rcode != 0)
-      return rcode;
-
-    if(*newByte == 0) {
-      return 0;
-    }
-  } while((newByte = stream.alloc(1)) != nullptr);
-
-  return -6;
-}
-
-  /*
-  *
-  *  CRC
-  *
-  */
-  class CrcNoop {
-public:
-  constexpr static size_t size() {
-    return 0;
-  }
-
-  int value() const {
-    return 0;
-  }
-
-  void update(const char *c, size_t length) {
-  }
-};
-
-template <typename CrcFunc, typename CrcType>
-class Crc {
-public:
-  constexpr static size_t size() {
-    return sizeof(CrcType);
-  }
-
-  CrcType value() const {
-    return m_lastVal;
-  }
-
-  void update(const char *data, size_t length) {
-    CrcFunc fn;
-    m_lastVal = fn(data, length, m_lastVal);
-  }
-private:
-  CrcType m_lastVal = 0;
-};
-
-struct crc8_fn;
-struct crc16_fn;
-struct crc32_fn;
-
-
-using Crc8 = Crc<crc8_fn, uint8_t>;
-using Crc16 = Crc<crc16_fn, uint16_t>;
-using Crc32 = Crc<crc32_fn, uint32_t>;
-
 /*
-  *  Auto generated CRC functions
-  */
-
-// The CRC lookup tables are stored as const variables. On many platforms,
-// const variables are stored in flash memroy. On AVR though, they are
-// loaded into RAM on startup. A special PROGMEM macro is available on AVRs
-// to indicate constants should be stored in program memory (flash).
-// So if this macro is available, use it and assume we're on an AVR. 
-#ifdef PROGMEM
-  #define BAKELITE_CONST PROGMEM
-  // PROGMEM variables need to be accessed using pgm_read_* functions.
-  #define BAKELITE_CONST_8(x)  pgm_read_byte(&(x))
-  #define BAKELITE_CONST_16(x) pgm_read_dword(&(x))
-  #define BAKELITE_CONST_32(x) ((uint32_t)pgm_read_dword((char *)&(x) + 2) << 16 | pgm_read_dword(&(x)))
-#else
-  #define BAKELITE_CONST
-  #define BAKELITE_CONST_8(x)  x
-  #define BAKELITE_CONST_16(x) x
-  #define BAKELITE_CONST_32(x) x
+ * Common C99 implementations (CRC and COBS)
+ */
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-// Automatically generated CRC function
-// polynomial: 0x107
-struct crc8_fn {
-  uint8_t operator()(const char *data, int len, uint8_t crc) {
-    const unsigned char *uData = (unsigned char *)data;
+/*
+ * Bakelite CRC Functions (C99)
+ * Copyright (c) Emma Powers 2021-2025
+ *
+ * Platform-independent CRC-8, CRC-16, and CRC-32 implementations
+ * with flash storage support for embedded platforms.
+ */
 
-    static const uint8_t table[256] BAKELITE_CONST = {
+#ifndef BAKELITE_COMMON_CRC_H
+#define BAKELITE_COMMON_CRC_H
+
+#include <stdint.h>
+#include <stddef.h>
+
+/*
+ * Flash storage attribute macros for embedded platforms.
+ *
+ * On most platforms, const variables are automatically placed in flash.
+ * AVR requires PROGMEM and special read functions.
+ * ESP32/ESP8266 use ICACHE_RODATA_ATTR but can read directly.
+ */
+#if defined(__AVR__)
+  #include <avr/pgmspace.h>
+  #define BAKELITE_FLASH PROGMEM
+  #define BAKELITE_FLASH_READ_8(x)  pgm_read_byte(&(x))
+  #define BAKELITE_FLASH_READ_16(x) pgm_read_word(&(x))
+  #define BAKELITE_FLASH_READ_32(x) pgm_read_dword(&(x))
+#elif defined(ESP32) || defined(ESP8266) || defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_ESP8266)
+  #ifdef ESP8266
+    #include <pgmspace.h>
+  #endif
+  #define BAKELITE_FLASH ICACHE_RODATA_ATTR
+  #define BAKELITE_FLASH_READ_8(x)  (x)
+  #define BAKELITE_FLASH_READ_16(x) (x)
+  #define BAKELITE_FLASH_READ_32(x) (x)
+#elif defined(__XC8)
+  /* Microchip XC8 for 8-bit PIC */
+  #define BAKELITE_FLASH __rom
+  #define BAKELITE_FLASH_READ_8(x)  (x)
+  #define BAKELITE_FLASH_READ_16(x) (x)
+  #define BAKELITE_FLASH_READ_32(x) (x)
+#elif defined(__XC16) || defined(__XC32)
+  /* Microchip XC16/XC32 - const is sufficient */
+  #define BAKELITE_FLASH
+  #define BAKELITE_FLASH_READ_8(x)  (x)
+  #define BAKELITE_FLASH_READ_16(x) (x)
+  #define BAKELITE_FLASH_READ_32(x) (x)
+#else
+  /* Default: const variables are in flash (ARM Cortex-M, etc.) */
+  #define BAKELITE_FLASH
+  #define BAKELITE_FLASH_READ_8(x)  (x)
+  #define BAKELITE_FLASH_READ_16(x) (x)
+  #define BAKELITE_FLASH_READ_32(x) (x)
+#endif
+
+/* CRC size constants */
+#define BAKELITE_CRC_NOOP_SIZE 0
+#define BAKELITE_CRC8_SIZE  1
+#define BAKELITE_CRC16_SIZE 2
+#define BAKELITE_CRC32_SIZE 4
+
+/* CRC-8 polynomial: 0x107 */
+static inline uint8_t bakelite_crc8(const uint8_t *data, size_t len, uint8_t crc) {
+    static const uint8_t table[256] BAKELITE_FLASH = {
     0x00U,0x07U,0x0EU,0x09U,0x1CU,0x1BU,0x12U,0x15U,
     0x38U,0x3FU,0x36U,0x31U,0x24U,0x23U,0x2AU,0x2DU,
     0x70U,0x77U,0x7EU,0x79U,0x6CU,0x6BU,0x62U,0x65U,
@@ -371,23 +123,17 @@ struct crc8_fn {
     0xE6U,0xE1U,0xE8U,0xEFU,0xFAU,0xFDU,0xF4U,0xF3U,
     };
 
-    while (len > 0)
-    {
-      crc = BAKELITE_CONST_8(table[*uData ^ (uint8_t)crc]);
-      uData++;
-      len--;
+    while (len > 0) {
+        crc = BAKELITE_FLASH_READ_8(table[*data ^ crc]);
+        data++;
+        len--;
     }
     return crc;
-  }
-};
+}
 
-// Automatically generated CRC function
-// polynomial: 0x18005, bit reverse algorithm
-struct crc16_fn {
-  uint16_t operator()(const char *data, int len, uint16_t crc) {
-    const unsigned char *uData = (unsigned char *)data;
-
-    static const uint16_t table[256] BAKELITE_CONST = {
+/* CRC-16 polynomial: 0x18005, bit reverse algorithm */
+static inline uint16_t bakelite_crc16(const uint8_t *data, size_t len, uint16_t crc) {
+    static const uint16_t table[256] BAKELITE_FLASH = {
     0x0000U,0xC0C1U,0xC181U,0x0140U,0xC301U,0x03C0U,0x0280U,0xC241U,
     0xC601U,0x06C0U,0x0780U,0xC741U,0x0500U,0xC5C1U,0xC481U,0x0440U,
     0xCC01U,0x0CC0U,0x0D80U,0xCD41U,0x0F00U,0xCFC1U,0xCE81U,0x0E40U,
@@ -422,23 +168,17 @@ struct crc16_fn {
     0x8201U,0x42C0U,0x4380U,0x8341U,0x4100U,0x81C1U,0x8081U,0x4040U,
     };
 
-    while (len > 0)
-    {
-      crc = BAKELITE_CONST_16(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
-      uData++;
-      len--;
+    while (len > 0) {
+        crc = BAKELITE_FLASH_READ_16(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
+        data++;
+        len--;
     }
     return crc;
-  }
-};
+}
 
-// Automatically generated CRC function
-// polynomial: 0x104C11DB7, bit reverse algorithm
-struct crc32_fn {
-  uint32_t operator()(const char *data, int len, uint32_t crc) {
-    const unsigned char *uData = (unsigned char *)data;
-
-    static const uint32_t table[256] BAKELITE_CONST = {
+/* CRC-32 polynomial: 0x104C11DB7, bit reverse algorithm */
+static inline uint32_t bakelite_crc32(const uint8_t *data, size_t len, uint32_t crc) {
+    static const uint32_t table[256] BAKELITE_FLASH = {
     0x00000000U,0x77073096U,0xEE0E612CU,0x990951BAU,
     0x076DC419U,0x706AF48FU,0xE963A535U,0x9E6495A3U,
     0x0EDB8832U,0x79DCB8A4U,0xE0D5E91EU,0x97D2D988U,
@@ -506,23 +246,649 @@ struct crc32_fn {
     };
 
     crc = crc ^ 0xFFFFFFFFU;
-    while (len > 0)
-    {
-      crc = BAKELITE_CONST_32(table[*uData ^ (uint8_t)crc]) ^ (crc >> 8);
-      uData++;
-      len--;
+    while (len > 0) {
+        crc = BAKELITE_FLASH_READ_32(table[*data ^ (uint8_t)crc]) ^ (crc >> 8);
+        data++;
+        len--;
     }
     crc = crc ^ 0xFFFFFFFFU;
     return crc;
+}
+
+#endif /* BAKELITE_COMMON_CRC_H */
+
+
+/*
+ * Bakelite COBS Functions (C99)
+ *
+ * COBS encode/decode functions are Copyright (c) 2010 Craig McQueen
+ * Licensed under the MIT license (see end of file).
+ * Source: https://github.com/cmcqueen/cobs-c
+ */
+
+#ifndef BAKELITE_COMMON_COBS_H
+#define BAKELITE_COMMON_COBS_H
+
+#include <stdint.h>
+#include <stddef.h>
+
+/* COBS buffer size calculations */
+#define BAKELITE_COBS_ENCODE_DST_BUF_LEN_MAX(SRC_LEN) ((SRC_LEN) + (((SRC_LEN) + 253u) / 254u))
+#define BAKELITE_COBS_DECODE_DST_BUF_LEN_MAX(SRC_LEN) (((SRC_LEN) == 0) ? 0u : ((SRC_LEN) - 1u))
+#define BAKELITE_COBS_OVERHEAD(BUF_SIZE)              (((BUF_SIZE) + 253u) / 254u)
+#define BAKELITE_COBS_ENCODE_SRC_OFFSET(SRC_LEN)      (((SRC_LEN) + 253u) / 254u)
+
+/* Legacy macro names for backward compatibility */
+#define COBS_ENCODE_DST_BUF_LEN_MAX(SRC_LEN) BAKELITE_COBS_ENCODE_DST_BUF_LEN_MAX(SRC_LEN)
+#define COBS_DECODE_DST_BUF_LEN_MAX(SRC_LEN) BAKELITE_COBS_DECODE_DST_BUF_LEN_MAX(SRC_LEN)
+#define COBS_ENCODE_SRC_OFFSET(SRC_LEN)      BAKELITE_COBS_ENCODE_SRC_OFFSET(SRC_LEN)
+
+/* COBS encode/decode status */
+typedef enum {
+    BAKELITE_COBS_ENCODE_OK = 0x00,
+    BAKELITE_COBS_ENCODE_NULL_POINTER = 0x01,
+    BAKELITE_COBS_ENCODE_OUT_BUFFER_OVERFLOW = 0x02
+} Bakelite_CobsEncodeStatus;
+
+typedef enum {
+    BAKELITE_COBS_DECODE_OK = 0x00,
+    BAKELITE_COBS_DECODE_NULL_POINTER = 0x01,
+    BAKELITE_COBS_DECODE_OUT_BUFFER_OVERFLOW = 0x02,
+    BAKELITE_COBS_DECODE_ZERO_BYTE_IN_INPUT = 0x04,
+    BAKELITE_COBS_DECODE_INPUT_TOO_SHORT = 0x08
+} Bakelite_CobsDecodeStatus;
+
+/* COBS encode/decode results */
+typedef struct {
+    size_t out_len;
+    int status;
+} Bakelite_CobsEncodeResult;
+
+typedef struct {
+    size_t out_len;
+    int status;
+} Bakelite_CobsDecodeResult;
+
+/*
+ * COBS-encode a string of input bytes.
+ *
+ * dst_buf_ptr:    The buffer into which the result will be written
+ * dst_buf_len:    Length of the buffer into which the result will be written
+ * src_ptr:        The byte string to be encoded
+ * src_len         Length of the byte string to be encoded
+ *
+ * returns:        A struct containing the success status of the encoding
+ *                 operation and the length of the result (that was written to
+ *                 dst_buf_ptr)
+ */
+static inline Bakelite_CobsEncodeResult bakelite_cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
+                                                             const void *src_ptr, size_t src_len) {
+    Bakelite_CobsEncodeResult result = {0, BAKELITE_COBS_ENCODE_OK};
+    const uint8_t *src_read_ptr = (const uint8_t *)src_ptr;
+    const uint8_t *src_end_ptr = src_read_ptr + src_len;
+    uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
+    uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
+    uint8_t *dst_code_write_ptr = (uint8_t *)dst_buf_ptr;
+    uint8_t *dst_write_ptr = dst_code_write_ptr + 1;
+    uint8_t src_byte = 0;
+    uint8_t search_len = 1;
+
+    if ((dst_buf_ptr == NULL) || (src_ptr == NULL)) {
+        result.status = BAKELITE_COBS_ENCODE_NULL_POINTER;
+        return result;
+    }
+
+    if (src_len != 0) {
+        for (;;) {
+            if (dst_write_ptr >= dst_buf_end_ptr) {
+                result.status |= BAKELITE_COBS_ENCODE_OUT_BUFFER_OVERFLOW;
+                break;
+            }
+
+            src_byte = *src_read_ptr++;
+            if (src_byte == 0) {
+                *dst_code_write_ptr = search_len;
+                dst_code_write_ptr = dst_write_ptr++;
+                search_len = 1;
+                if (src_read_ptr >= src_end_ptr) {
+                    break;
+                }
+            } else {
+                *dst_write_ptr++ = src_byte;
+                search_len++;
+                if (src_read_ptr >= src_end_ptr) {
+                    break;
+                }
+                if (search_len == 0xFF) {
+                    *dst_code_write_ptr = search_len;
+                    dst_code_write_ptr = dst_write_ptr++;
+                    search_len = 1;
+                }
+            }
+        }
+    }
+
+    if (dst_code_write_ptr >= dst_buf_end_ptr) {
+        result.status |= BAKELITE_COBS_ENCODE_OUT_BUFFER_OVERFLOW;
+        dst_write_ptr = dst_buf_end_ptr;
+    } else {
+        *dst_code_write_ptr = search_len;
+    }
+
+    result.out_len = (size_t)(dst_write_ptr - dst_buf_start_ptr);
+    return result;
+}
+
+/*
+ * Decode a COBS byte string.
+ *
+ * dst_buf_ptr:    The buffer into which the result will be written
+ * dst_buf_len:    Length of the buffer into which the result will be written
+ * src_ptr:        The byte string to be decoded
+ * src_len         Length of the byte string to be decoded
+ *
+ * returns:        A struct containing the success status of the decoding
+ *                 operation and the length of the result (that was written to
+ *                 dst_buf_ptr)
+ */
+static inline Bakelite_CobsDecodeResult bakelite_cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
+                                                             const void *src_ptr, size_t src_len) {
+    Bakelite_CobsDecodeResult result = {0, BAKELITE_COBS_DECODE_OK};
+    const uint8_t *src_read_ptr = (const uint8_t *)src_ptr;
+    const uint8_t *src_end_ptr = src_read_ptr + src_len;
+    uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
+    uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
+    uint8_t *dst_write_ptr = (uint8_t *)dst_buf_ptr;
+    size_t remaining_bytes;
+    uint8_t src_byte;
+    uint8_t i;
+    uint8_t len_code;
+
+    if ((dst_buf_ptr == NULL) || (src_ptr == NULL)) {
+        result.status = BAKELITE_COBS_DECODE_NULL_POINTER;
+        return result;
+    }
+
+    if (src_len != 0) {
+        for (;;) {
+            len_code = *src_read_ptr++;
+            if (len_code == 0) {
+                result.status |= BAKELITE_COBS_DECODE_ZERO_BYTE_IN_INPUT;
+                break;
+            }
+            len_code--;
+
+            remaining_bytes = (size_t)(src_end_ptr - src_read_ptr);
+            if (len_code > remaining_bytes) {
+                result.status |= BAKELITE_COBS_DECODE_INPUT_TOO_SHORT;
+                len_code = (uint8_t)remaining_bytes;
+            }
+
+            remaining_bytes = (size_t)(dst_buf_end_ptr - dst_write_ptr);
+            if (len_code > remaining_bytes) {
+                result.status |= BAKELITE_COBS_DECODE_OUT_BUFFER_OVERFLOW;
+                len_code = (uint8_t)remaining_bytes;
+            }
+
+            for (i = len_code; i != 0; i--) {
+                src_byte = *src_read_ptr++;
+                if (src_byte == 0) {
+                    result.status |= BAKELITE_COBS_DECODE_ZERO_BYTE_IN_INPUT;
+                }
+                *dst_write_ptr++ = src_byte;
+            }
+
+            if (src_read_ptr >= src_end_ptr) {
+                break;
+            }
+
+            if (len_code != 0xFE) {
+                if (dst_write_ptr >= dst_buf_end_ptr) {
+                    result.status |= BAKELITE_COBS_DECODE_OUT_BUFFER_OVERFLOW;
+                    break;
+                }
+                *dst_write_ptr++ = 0;
+            }
+        }
+    }
+
+    result.out_len = (size_t)(dst_write_ptr - dst_buf_start_ptr);
+    return result;
+}
+
+/*
+ * MIT License for COBS encode/decode functions:
+ *
+ * Copyright (c) 2010 Craig McQueen
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#endif /* BAKELITE_COMMON_COBS_H */
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#include <initializer_list>
+
+namespace Bakelite {
+  /*
+  *
+  *  Pre-Declarations
+  *
+  */
+  // C++ wrapper types and functions for COBS encode/decode
+// These wrap the common C99 implementation for use in the Bakelite namespace
+
+struct cobs_encode_result {
+    size_t out_len;
+    int status;
+};
+
+struct cobs_decode_result {
+    size_t out_len;
+    int status;
+};
+
+static inline cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
+                                             const void *src_ptr, size_t src_len) {
+    Bakelite_CobsEncodeResult c_result = bakelite_cobs_encode(dst_buf_ptr, dst_buf_len, src_ptr, src_len);
+    return {c_result.out_len, c_result.status};
+}
+
+static inline cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
+                                             const void *src_ptr, size_t src_len) {
+    Bakelite_CobsDecodeResult c_result = bakelite_cobs_decode(dst_buf_ptr, dst_buf_len, src_ptr, src_len);
+    return {c_result.out_len, c_result.status};
+}
+
+
+  /*
+  *
+  *  Serializer
+  *
+  */
+  /// Fixed-capacity array with runtime length, similar to std::vector but stack-allocated.
+/// @tparam T Element type
+/// @tparam N Maximum capacity
+/// @tparam SizeT Type for length field (uint8_t for N <= 255)
+template<typename T, size_t N, typename SizeT = uint8_t>
+struct SizedArray {
+    T data[N];
+    SizeT len = 0;
+
+    // Default constructor - empty array
+    SizedArray() = default;
+
+    // Construct from raw array and length
+    SizedArray(const T* src, size_t count) : len(static_cast<SizeT>(count < N ? count : N)) {
+        memcpy(data, src, len * sizeof(T));
+    }
+
+    // Construct from initializer list
+    SizedArray(std::initializer_list<T> init) : len(0) {
+        for (const auto& item : init) {
+            if (len >= N) break;
+            data[len++] = item;
+        }
+    }
+
+    // Copy constructor
+    SizedArray(const SizedArray& other) : len(other.len) {
+        memcpy(data, other.data, len * sizeof(T));
+    }
+
+    // Move constructor
+    SizedArray(SizedArray&& other) noexcept : len(other.len) {
+        memcpy(data, other.data, len * sizeof(T));
+        other.len = 0;
+    }
+
+    // Copy assignment
+    SizedArray& operator=(const SizedArray& other) {
+        if (this != &other) {
+            len = other.len;
+            memcpy(data, other.data, len * sizeof(T));
+        }
+        return *this;
+    }
+
+    // Move assignment
+    SizedArray& operator=(SizedArray&& other) noexcept {
+        if (this != &other) {
+            len = other.len;
+            memcpy(data, other.data, len * sizeof(T));
+            other.len = 0;
+        }
+        return *this;
+    }
+
+    /// Copy data from a raw array
+    void assign(const T* src, size_t count) {
+        len = static_cast<SizeT>(count < N ? count : N);
+        memcpy(data, src, len * sizeof(T));
+    }
+
+    // Capacity and size
+    size_t size() const { return len; }
+    size_t capacity() const { return N; }
+    bool empty() const { return len == 0; }
+
+    // Element access
+    T& operator[](size_t i) { return data[i]; }
+    const T& operator[](size_t i) const { return data[i]; }
+
+    // Iterators (enables range-for loops)
+    T* begin() { return data; }
+    T* end() { return data + len; }
+    const T* begin() const { return data; }
+    const T* end() const { return data + len; }
+
+    // Modifiers
+    void push_back(const T& val) { if (len < N) data[len++] = val; }
+    void clear() { len = 0; }
+};
+
+class BufferStream {
+public:
+    BufferStream(char *buff, size_t size) :
+        m_buff(buff),
+        m_size(size),
+        m_pos(0)
+    {}
+
+    int write(const char *data, size_t length) {
+        size_t endPos = m_pos + length;
+        if (endPos > m_size) {
+            return -1;
+        }
+
+        memcpy(m_buff + m_pos, data, length);
+        m_pos += length;
+
+        return 0;
+    }
+
+    int read(char *data, size_t length) {
+        size_t endPos = m_pos + length;
+        if (endPos > m_size) {
+            return -2;
+        }
+
+        memcpy(data, m_buff + m_pos, length);
+        m_pos += length;
+
+        return 0;
+    }
+
+    int seek(size_t pos) {
+        if (pos >= m_size) {
+            return -3;
+        }
+        m_pos = pos;
+        return 0;
+    }
+
+    size_t size() const { return m_size; }
+    size_t pos() const { return m_pos; }
+
+private:
+    char *m_buff;
+    size_t m_size;
+    size_t m_pos;
+};
+
+// Write primitives
+template <class T, class V>
+int write(T& stream, V val) {
+    return stream.write((const char *)&val, sizeof(val));
+}
+
+// Write fixed-size array
+template <class T, class V, class F>
+int writeArray(T& stream, const V *val, size_t size, F writeCb) {
+    for (size_t i = 0; i < size; i++) {
+        int rcode = writeCb(stream, val[i]);
+        if (rcode != 0)
+            return rcode;
+    }
+    return 0;
+}
+
+// Write variable-length array (SizedArray)
+template <class T, class V, size_t N, typename SizeT, class F>
+int writeArray(T& stream, const SizedArray<V, N, SizeT> &val, F writeCb) {
+    int rcode = write(stream, static_cast<SizeT>(val.len));
+    if (rcode != 0)
+        return rcode;
+    for (size_t i = 0; i < val.len; i++) {
+        rcode = writeCb(stream, val.data[i]);
+        if (rcode != 0)
+            return rcode;
+    }
+    return 0;
+}
+
+// Write fixed-size bytes
+template <class T>
+int writeBytes(T& stream, const char *val, size_t size) {
+    return stream.write(val, size);
+}
+
+// Write variable-length bytes (SizedArray)
+template <class T, size_t N, typename SizeT>
+int writeBytes(T& stream, const SizedArray<uint8_t, N, SizeT> &val) {
+    int rcode = write(stream, static_cast<SizeT>(val.len));
+    if (rcode != 0)
+        return rcode;
+    return stream.write((const char *)val.data, val.len);
+}
+
+// Write null-terminated string
+template <class T>
+int writeString(T& stream, const char *val) {
+    size_t len = strlen(val);
+    int rcode = stream.write(val, len);
+    if (rcode != 0)
+        return rcode;
+    return write(stream, (uint8_t)0);  // null terminator
+}
+
+// Read primitives
+template <class T, class V>
+int read(T& stream, V &val) {
+    return stream.read((char *)&val, sizeof(val));
+}
+
+// Read fixed-size array
+template <class T, class V, class F>
+int readArray(T& stream, V val[], size_t size, F readCb) {
+    for (size_t i = 0; i < size; i++) {
+        int rcode = readCb(stream, val[i]);
+        if (rcode != 0)
+            return rcode;
+    }
+    return 0;
+}
+
+// Read variable-length array into SizedArray (inline storage)
+template <class T, class V, size_t N, typename SizeT, class F>
+int readArray(T& stream, SizedArray<V, N, SizeT> &val, F readCb) {
+    SizeT size = 0;
+    int rcode = read(stream, size);
+    if (rcode != 0)
+        return rcode;
+
+    if (size > N) {
+        return -4;  // Exceeds capacity
+    }
+
+    val.len = size;
+    for (size_t i = 0; i < size; i++) {
+        rcode = readCb(stream, val.data[i]);
+        if (rcode != 0)
+            return rcode;
+    }
+    return 0;
+}
+
+// Read fixed-size bytes
+template <class T>
+int readBytes(T& stream, char *val, size_t size) {
+    return stream.read(val, size);
+}
+
+// Read variable-length bytes into SizedArray (inline storage)
+template <class T, size_t N, typename SizeT>
+int readBytes(T& stream, SizedArray<uint8_t, N, SizeT> &val) {
+    SizeT size = 0;
+    int rcode = read(stream, size);
+    if (rcode != 0)
+        return rcode;
+
+    if (size > N) {
+        return -5;  // Exceeds capacity
+    }
+
+    val.len = size;
+    return stream.read((char *)val.data, size);
+}
+
+// Read null-terminated string into char array
+template <class T, size_t N>
+int readString(T& stream, char (&val)[N]) {
+    size_t i = 0;
+    while (i < N - 1) {
+        int rcode = stream.read(&val[i], 1);
+        if (rcode != 0)
+            return rcode;
+        if (val[i] == '\0') {
+            return 0;
+        }
+        i++;
+    }
+    // Read and discard until null terminator or error
+    char c;
+    do {
+        int rcode = stream.read(&c, 1);
+        if (rcode != 0)
+            return rcode;
+    } while (c != '\0');
+    val[N - 1] = '\0';
+    return 0;
+}
+
+
+  /*
+  *
+  *  CRC
+  *
+  */
+  /*
+ * C++ CRC wrapper classes using common C99 implementation
+ */
+
+class CrcNoop {
+public:
+  constexpr static size_t size() {
+    return 0;
+  }
+
+  int value() const {
+    return 0;
+  }
+
+  void update(const char *c, size_t length) {
   }
 };
+
+template <typename CrcType>
+class Crc8Impl {
+public:
+  constexpr static size_t size() {
+    return sizeof(CrcType);
+  }
+
+  CrcType value() const {
+    return m_lastVal;
+  }
+
+  void update(const char *data, size_t length) {
+    m_lastVal = bakelite_crc8((const uint8_t *)data, length, m_lastVal);
+  }
+private:
+  CrcType m_lastVal = 0;
+};
+
+template <typename CrcType>
+class Crc16Impl {
+public:
+  constexpr static size_t size() {
+    return sizeof(CrcType);
+  }
+
+  CrcType value() const {
+    return m_lastVal;
+  }
+
+  void update(const char *data, size_t length) {
+    m_lastVal = bakelite_crc16((const uint8_t *)data, length, m_lastVal);
+  }
+private:
+  CrcType m_lastVal = 0;
+};
+
+template <typename CrcType>
+class Crc32Impl {
+public:
+  constexpr static size_t size() {
+    return sizeof(CrcType);
+  }
+
+  CrcType value() const {
+    return m_lastVal;
+  }
+
+  void update(const char *data, size_t length) {
+    m_lastVal = bakelite_crc32((const uint8_t *)data, length, m_lastVal);
+  }
+private:
+  CrcType m_lastVal = 0;
+};
+
+using Crc8 = Crc8Impl<uint8_t>;
+using Crc16 = Crc16Impl<uint16_t>;
+using Crc32 = Crc32Impl<uint32_t>;
+
 
   /*
   *
   *  COBS Framer
   *
   */
-  enum class CobsDecodeState {
+  /*
+ * C++ COBS Framer using common C99 implementation
+ */
+
+enum class CobsDecodeState {
   Decoded,
   NotReady,
   DecodeFailure,
@@ -588,7 +954,7 @@ public:
       memcpy(msgStart + length, (void *)&crc_val, sizeof(crc_val));
     }
 
-    auto result = cobs_encode((void *)m_buffer, sizeof(m_buffer),
+    auto result = bakelite_cobs_encode((void *)m_buffer, sizeof(m_buffer),
                               (void *)msgStart, length + C::size());
     if(result.status != 0) {
       return { 1, 0, nullptr };
@@ -624,7 +990,7 @@ private:
     length--;  // Discard null byte
 
     // Decode in-place at buffer start
-    auto result = cobs_decode((void *)m_buffer, sizeof(m_buffer), (void *)m_buffer, length);
+    auto result = bakelite_cobs_decode((void *)m_buffer, sizeof(m_buffer), (void *)m_buffer, length);
     if(result.status != 0) {
       return { CobsDecodeState::DecodeFailure, 0, nullptr };
     }
@@ -671,234 +1037,9 @@ private:
   char *m_readPos = m_buffer;
 };
 
-/***************
- * The below COBS function are Copyright (c) 2010 Craig McQueen
- * And licensed under the MIT license, which can be found at the end of this file.
- *
- * Source: https://github.com/cmcqueen/cobs-c
- * Commit: f4b812953e19bcece1a994d33f370652dba2bf1b
- ***************/
-
-#define COBS_ENCODE_DST_BUF_LEN_MAX(SRC_LEN)            ((SRC_LEN) + (((SRC_LEN) + 253u)/254u))
-#define COBS_DECODE_DST_BUF_LEN_MAX(SRC_LEN)            (((SRC_LEN) == 0) ? 0u : ((SRC_LEN) - 1u))
-#define COBS_ENCODE_SRC_OFFSET(SRC_LEN)                 (((SRC_LEN) + 253u)/254u)
-
-typedef enum
-{
-    COBS_ENCODE_OK                  = 0x00,
-    COBS_ENCODE_NULL_POINTER        = 0x01,
-    COBS_ENCODE_OUT_BUFFER_OVERFLOW = 0x02
-} cobs_encode_status;
-
-struct cobs_encode_result
-{
-    size_t              out_len;
-    int                 status;
-};
-
-typedef enum
-{
-    COBS_DECODE_OK                  = 0x00,
-    COBS_DECODE_NULL_POINTER        = 0x01,
-    COBS_DECODE_OUT_BUFFER_OVERFLOW = 0x02,
-    COBS_DECODE_ZERO_BYTE_IN_INPUT  = 0x04,
-    COBS_DECODE_INPUT_TOO_SHORT     = 0x08
-} cobs_decode_status;
-
-/* COBS-encode a string of input bytes.
-*
-* dst_buf_ptr:    The buffer into which the result will be written
-* dst_buf_len:    Length of the buffer into which the result will be written
-* src_ptr:        The byte string to be encoded
-* src_len         Length of the byte string to be encoded
-*
-* returns:        A struct containing the success status of the encoding
-*                 operation and the length of the result (that was written to
-*                 dst_buf_ptr)
-*/
-static cobs_encode_result cobs_encode(void *dst_buf_ptr, size_t dst_buf_len,
-                                const void *src_ptr, size_t src_len)
-{
-  cobs_encode_result result = {0, COBS_ENCODE_OK};
-  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
-  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
-  uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_code_write_ptr = (uint8_t *)dst_buf_ptr;
-  uint8_t *dst_write_ptr = dst_code_write_ptr + 1;
-  uint8_t src_byte = 0;
-  uint8_t search_len = 1;
-
-  /* First, do a NULL pointer check and return immediately if it fails. */
-  if ((dst_buf_ptr == NULL) || (src_ptr == NULL))
-  {
-    result.status = COBS_ENCODE_NULL_POINTER;
-    return result;
-  }
-
-  if (src_len != 0)
-  {
-    /* Iterate over the source bytes */
-    for (;;)
-    {
-      /* Check for running out of output buffer space */
-      if (dst_write_ptr >= dst_buf_end_ptr)
-      {
-        result.status |= COBS_ENCODE_OUT_BUFFER_OVERFLOW;
-        break;
-      }
-
-      src_byte = *src_read_ptr++;
-      if (src_byte == 0)
-      {
-        /* We found a zero byte */
-        *dst_code_write_ptr = search_len;
-        dst_code_write_ptr = dst_write_ptr++;
-        search_len = 1;
-        if (src_read_ptr >= src_end_ptr)
-        {
-          break;
-        }
-      }
-      else
-      {
-        /* Copy the non-zero byte to the destination buffer */
-        *dst_write_ptr++ = src_byte;
-        search_len++;
-        if (src_read_ptr >= src_end_ptr)
-        {
-          break;
-        }
-        if (search_len == 0xFF)
-        {
-          /* We have a long string of non-zero bytes, so we need
-                    * to write out a length code of 0xFF. */
-          *dst_code_write_ptr = search_len;
-          dst_code_write_ptr = dst_write_ptr++;
-          search_len = 1;
-        }
-      }
-    }
-  }
-
-  /* We've reached the end of the source data (or possibly run out of output buffer)
-    * Finalise the remaining output. In particular, write the code (length) byte.
-    * Update the pointer to calculate the final output length.
-    */
-  if (dst_code_write_ptr >= dst_buf_end_ptr)
-  {
-    /* We've run out of output buffer to write the code byte. */
-    result.status |= COBS_ENCODE_OUT_BUFFER_OVERFLOW;
-    dst_write_ptr = dst_buf_end_ptr;
-  }
-  else
-  {
-    /* Write the last code (length) byte. */
-    *dst_code_write_ptr = search_len;
-  }
-
-  /* Calculate the output length, from the value of dst_code_write_ptr */
-  result.out_len = dst_write_ptr - dst_buf_start_ptr;
-
-  return result;
 }
 
-/* Decode a COBS byte string.
-*
-* dst_buf_ptr:    The buffer into which the result will be written
-* dst_buf_len:    Length of the buffer into which the result will be written
-* src_ptr:        The byte string to be decoded
-* src_len         Length of the byte string to be decoded
-*
-* returns:        A struct containing the success status of the decoding
-*                 operation and the length of the result (that was written to
-*                 dst_buf_ptr)
-*/
-static cobs_decode_result cobs_decode(void *dst_buf_ptr, size_t dst_buf_len,
-                                const void *src_ptr, size_t src_len)
-{
-  cobs_decode_result result = {0, COBS_DECODE_OK};
-  const uint8_t *src_read_ptr = (uint8_t *)src_ptr;
-  const uint8_t *src_end_ptr = (uint8_t *)src_read_ptr + src_len;
-  uint8_t *dst_buf_start_ptr = (uint8_t *)dst_buf_ptr;
-  uint8_t *dst_buf_end_ptr = dst_buf_start_ptr + dst_buf_len;
-  uint8_t *dst_write_ptr = (uint8_t *)dst_buf_ptr;
-  size_t remaining_bytes;
-  uint8_t src_byte;
-  uint8_t i;
-  uint8_t len_code;
-
-  /* First, do a NULL pointer check and return immediately if it fails. */
-  if ((dst_buf_ptr == NULL) || (src_ptr == NULL))
-  {
-    result.status = COBS_DECODE_NULL_POINTER;
-    return result;
-  }
-
-  if (src_len != 0)
-  {
-    for (;;)
-    {
-      len_code = *src_read_ptr++;
-      if (len_code == 0)
-      {
-        result.status |= COBS_DECODE_ZERO_BYTE_IN_INPUT;
-        break;
-      }
-      len_code--;
-
-      /* Check length code against remaining input bytes */
-      remaining_bytes = src_end_ptr - src_read_ptr;
-      if (len_code > remaining_bytes)
-      {
-        result.status |= COBS_DECODE_INPUT_TOO_SHORT;
-        len_code = remaining_bytes;
-      }
-
-      /* Check length code against remaining output buffer space */
-      remaining_bytes = dst_buf_end_ptr - dst_write_ptr;
-      if (len_code > remaining_bytes)
-      {
-        result.status |= COBS_DECODE_OUT_BUFFER_OVERFLOW;
-        len_code = remaining_bytes;
-      }
-
-      for (i = len_code; i != 0; i--)
-      {
-        src_byte = *src_read_ptr++;
-        if (src_byte == 0)
-        {
-          result.status |= COBS_DECODE_ZERO_BYTE_IN_INPUT;
-        }
-        *dst_write_ptr++ = src_byte;
-      }
-
-      if (src_read_ptr >= src_end_ptr)
-      {
-        break;
-      }
-
-      /* Add a zero to the end */
-      if (len_code != 0xFE)
-      {
-        if (dst_write_ptr >= dst_buf_end_ptr)
-        {
-          result.status |= COBS_DECODE_OUT_BUFFER_OVERFLOW;
-          break;
-        }
-        *dst_write_ptr++ = 0;
-      }
-    }
-  }
-
-  result.out_len = dst_write_ptr - dst_buf_start_ptr;
-
-  return result;
-}
-
-}
-
-/* 
+/*
 The MIT License
 ---------------
 
@@ -918,7 +1059,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE. 
+THE SOFTWARE.
 */
 
 #endif // __BAKELITE_H__

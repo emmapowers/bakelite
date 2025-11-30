@@ -50,7 +50,7 @@ typedef struct BAKELITE_PACKED {
   % if member.comment
   /* {{ member.comment }} */
   % endif
-  {{map_type_member(member)}} {{ member.name }}{{-array_postfix(member)-}}{{-size_postfix(member)-}};
+  {{map_type_member(member)}}{{inline_struct_def(member)}} {{ member.name }}{{-array_postfix(member)-}}{{-size_postfix(member)-}};
   % endfor
 } {{ struct.name }};
 {{""}}
@@ -185,16 +185,14 @@ static inline int Protocol_send_{{ msg[0] }}(Protocol *self, const {{ msg[0] }} 
 
 /* Copy-based decode functions */
 % for msg in message_ids:
-static inline int Protocol_decode_{{ msg[0] }}(Protocol *self, {{ msg[0] }} *msg,
-                                                uint8_t *heap, size_t heap_size) {
+static inline int Protocol_decode_{{ msg[0] }}(Protocol *self, {{ msg[0] }} *msg) {
   if (self->received_message != Protocol_{{ msg[0] }}) {
     return -1;
   }
 
   Bakelite_Buffer buf;
-  bakelite_buffer_init_with_heap(&buf,
-    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length,
-    heap, heap_size);
+  bakelite_buffer_init(&buf,
+    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length);
   return {{ msg[0] }}_unpack(msg, &buf);
 }
 {{""}}

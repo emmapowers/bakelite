@@ -116,37 +116,29 @@ def _gen_pack_primitive(member: ProtoStructMember, indent: str = "") -> str:
         return f'{indent}_buf.extend(_struct.pack("={fmt}", self.{name}))'
 
     if t.name == "bytes":
-        if t.size is None or t.size == 0:
-            # Variable length bytes
-            return (
-                f"{indent}if len(self.{name}) > 255:\n"
-                f'{indent}    raise SerializationError("{name} exceeds 255 bytes")\n'
-                f'{indent}_buf.extend(_struct.pack("=B", len(self.{name})))\n'
-                f"{indent}_buf.extend(self.{name})"
-            )
-        # Fixed length bytes
+        # bytes[N] - variable length with 1-byte length prefix
+        max_bytes = t.size if t.size is not None else 255
         return (
-            f"{indent}if len(self.{name}) > {t.size}:\n"
-            f'{indent}    raise SerializationError("{name} exceeds {t.size} bytes")\n'
-            f"{indent}_buf.extend(self.{name})\n"
-            f'{indent}_buf.extend(b"\\x00" * ({t.size} - len(self.{name})))'
+            f"{indent}if len(self.{name}) > {max_bytes}:\n"
+            f'{indent}    raise SerializationError("{name} exceeds {max_bytes} bytes")\n'
+            f'{indent}_buf.extend(_struct.pack("=B", len(self.{name})))\n'
+            f"{indent}_buf.extend(self.{name})"
         )
 
     if t.name == "string":
-        if t.size is None or t.size == 0:
-            # Variable length string (null terminated)
+        # string[N] - null terminated (max N chars)
+        if t.size is not None:
             return (
                 f'{indent}_enc_{name} = self.{name}.encode("ascii")\n'
+                f"{indent}if len(_enc_{name}) > {t.size}:\n"
+                f'{indent}    raise SerializationError("{name} exceeds {t.size} chars")\n'
                 f"{indent}_buf.extend(_enc_{name})\n"
                 f"{indent}_buf.append(0)"
             )
-        # Fixed length string
         return (
             f'{indent}_enc_{name} = self.{name}.encode("ascii")\n'
-            f"{indent}if len(_enc_{name}) >= {t.size}:\n"
-            f'{indent}    raise SerializationError("{name} exceeds {t.size - 1} chars")\n'
             f"{indent}_buf.extend(_enc_{name})\n"
-            f'{indent}_buf.extend(b"\\x00" * ({t.size} - len(_enc_{name})))'
+            f"{indent}_buf.append(0)"
         )
 
     raise ValueError(f"Unknown primitive type: {t.name}")
@@ -166,33 +158,22 @@ def _gen_unpack_primitive(member: ProtoStructMember, indent: str = "") -> str:
         )
 
     if t.name == "bytes":
-        if t.size is None or t.size == 0:
-            # Variable length bytes
-            return (
-                f'{indent}_len_{name} = _struct.unpack_from("=B", _data, _o)[0]\n'
-                f"{indent}_o += 1\n"
-                f"{indent}{name} = bytes(_data[_o:_o + _len_{name}])\n"
-                f"{indent}_o += _len_{name}"
-            )
-        # Fixed length bytes
-        return f"{indent}{name} = bytes(_data[_o:_o + {t.size}])\n" f"{indent}_o += {t.size}"
+        # bytes[N] - variable length with 1-byte length prefix
+        return (
+            f'{indent}_len_{name} = _struct.unpack_from("=B", _data, _o)[0]\n'
+            f"{indent}_o += 1\n"
+            f"{indent}{name} = bytes(_data[_o:_o + _len_{name}])\n"
+            f"{indent}_o += _len_{name}"
+        )
 
     if t.name == "string":
-        if t.size is None or t.size == 0:
-            # Variable length string (null terminated)
-            return (
-                f'{indent}_end_{name} = _data.find(b"\\x00", _o)\n'
-                f"{indent}if _end_{name} < 0:\n"
-                f'{indent}    raise SerializationError("unterminated string {name}")\n'
-                f'{indent}{name} = bytes(_data[_o:_end_{name}]).decode("ascii")\n'
-                f"{indent}_o = _end_{name} + 1"
-            )
-        # Fixed length string
+        # string[N] - null terminated
         return (
-            f"{indent}_raw_{name} = _data[_o:_o + {t.size}]\n"
-            f'{indent}_null_{name} = _raw_{name}.find(b"\\x00")\n'
-            f'{indent}{name} = bytes(_raw_{name}[:_null_{name} if _null_{name} >= 0 else {t.size}]).decode("ascii")\n'
-            f"{indent}_o += {t.size}"
+            f'{indent}_end_{name} = _data.find(b"\\x00", _o)\n'
+            f"{indent}if _end_{name} < 0:\n"
+            f'{indent}    raise SerializationError("unterminated string {name}")\n'
+            f'{indent}{name} = bytes(_data[_o:_end_{name}]).decode("ascii")\n'
+            f"{indent}_o = _end_{name} + 1"
         )
 
     raise ValueError(f"Unknown primitive type: {t.name}")
@@ -206,31 +187,20 @@ def _gen_pack_field(
     name = member.name
     lines: list[str] = []
 
-    # Check if it's an array
+    # Check if it's an array (all arrays are variable-length with length prefix)
     if member.array_size is not None:
-        if member.array_size == 0:
-            # Variable length array - write length prefix
-            lines.append(f"if len(self.{name}) > 255:")
-            lines.append(f'    raise SerializationError("{name} array exceeds 255 elements")')
-            lines.append(f'_buf.extend(_struct.pack("=B", len(self.{name})))')
+        # Variable length array - write length prefix and validate max capacity
+        lines.append(f"if len(self.{name}) > {member.array_size}:")
+        lines.append(
+            f'    raise SerializationError("{name} array exceeds {member.array_size} elements")'
+        )
+        lines.append(f'_buf.extend(_struct.pack("=B", len(self.{name})))')
 
         # Check if it's a primitive array that can be batched
         if t.name in FORMAT_CHARS:
             fmt = FORMAT_CHARS[t.name]
-            if member.array_size == 0:
-                # Variable length - use f-string format
-                lines.append(
-                    f'_buf.extend(_struct.pack(f"={{len(self.{name})}}{fmt}", *self.{name}))'
-                )
-            else:
-                # Fixed length - use literal format
-                lines.append(f"if len(self.{name}) != {member.array_size}:")
-                lines.append(
-                    f'    raise SerializationError("{name} must have {member.array_size} elements")'
-                )
-                lines.append(
-                    f'_buf.extend(_struct.pack("={member.array_size}{fmt}", *self.{name}))'
-                )
+            # Variable length - use f-string format
+            lines.append(f'_buf.extend(_struct.pack(f"={{len(self.{name})}}{fmt}", *self.{name}))')
         else:
             # Non-primitive array - loop
             lines.append(f"for _item in self.{name}:")
@@ -274,32 +244,24 @@ def _gen_unpack_field(
     name = member.name
     lines: list[str] = []
 
-    # Check if it's an array
+    # Check if it's an array (all arrays are variable-length with length prefix)
     if member.array_size is not None:
-        if member.array_size == 0:
-            # Variable length array - read length prefix
-            lines.append(f'_len_{name} = _struct.unpack_from("=B", _data, _o)[0]')
-            lines.append("_o += 1")
+        # Variable length array - read length prefix and validate max capacity
+        lines.append(f'_len_{name} = _struct.unpack_from("=B", _data, _o)[0]')
+        lines.append("_o += 1")
+        lines.append(f"if _len_{name} > {member.array_size}:")
+        lines.append(f'    raise SerializationError("{name} array length exceeds capacity")')
 
         # Check if it's a primitive array that can be batched
         if t.name in FORMAT_CHARS:
             fmt = FORMAT_CHARS[t.name]
             size = TYPE_SIZES[t.name]
-            if member.array_size == 0:
-                # Variable length
-                lines.append(
-                    f'{name} = list(_struct.unpack_from(f"={{_len_{name}}}{fmt}", _data, _o))'
-                )
-                lines.append(f"_o += _len_{name} * {size}")
-            else:
-                # Fixed length
-                lines.append(
-                    f'{name} = list(_struct.unpack_from("={member.array_size}{fmt}", _data, _o))'
-                )
-                lines.append(f"_o += {member.array_size * size}")
+            # Variable length
+            lines.append(f'{name} = list(_struct.unpack_from(f"={{_len_{name}}}{fmt}", _data, _o))')
+            lines.append(f"_o += _len_{name} * {size}")
         else:
             # Non-primitive array - loop
-            arr_len = f"_len_{name}" if member.array_size == 0 else str(member.array_size)
+            arr_len = f"_len_{name}"
             lines.append(f"{name} = []")
             lines.append(f"for _ in range({arr_len}):")
             if _is_primitive(t):

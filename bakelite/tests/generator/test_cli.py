@@ -137,6 +137,29 @@ def describe_runtime_command():
         expect("Unknown language" in result.output) == True
 
 
+def describe_info_command():
+    def shows_struct_sizes(expect):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["info", "-i", f"{FILE_DIR}/struct.bakelite"])
+        expect(result.exit_code) == 0
+        expect("Structs" in result.output) == True
+        expect("TestStruct" in result.output) == True
+
+    def shows_json_output(expect):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["info", "-i", f"{FILE_DIR}/proto.bakelite", "--json"])
+        expect(result.exit_code) == 0
+        expect('"structs"' in result.output) == True
+        expect('"messages"' in result.output) == True
+
+    def shows_protocol_settings(expect):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["info", "-i", f"{FILE_DIR}/proto.bakelite"])
+        expect(result.exit_code) == 0
+        expect("Protocol" in result.output) == True
+        expect("CRC" in result.output) == True
+
+
 def describe_main_group():
     def shows_help(expect):
         runner = CliRunner()
@@ -144,3 +167,4 @@ def describe_main_group():
         expect(result.exit_code) == 0
         expect("gen" in result.output) == True
         expect("runtime" in result.output) == True
+        expect("info" in result.output) == True

@@ -93,41 +93,28 @@ def describe_parse_struct():
         _, structs, _, _ = parse(
             """
             struct Data {
-                fixed_bytes: bytes[10]
-                variable_bytes: bytes[]
-                fixed_string: string[20]
-                variable_string: string[]
+                payload: bytes[64]
+                name: string[32]
             }
         """
         )
         expect(structs[0].members[0].type.name) == "bytes"
-        expect(structs[0].members[0].type.size) == 10
-        expect(structs[0].members[1].type.name) == "bytes"
-        expect(structs[0].members[1].type.size) == 0
-        expect(structs[0].members[2].type.name) == "string"
-        expect(structs[0].members[2].type.size) == 20
-        expect(structs[0].members[3].type.name) == "string"
-        expect(structs[0].members[3].type.size) == 0
+        expect(structs[0].members[0].type.size) == 64
+        expect(structs[0].members[1].type.name) == "string"
+        expect(structs[0].members[1].type.size) == 32
 
-    def parses_fixed_arrays(expect):
+    def parses_arrays(expect):
         _, structs, _, _ = parse(
             """
             struct Arrays {
                 ints: uint8[5]
+                points: Point[10]
             }
+            struct Point { x: int32 }
         """
         )
         expect(structs[0].members[0].array_size) == 5
-
-    def parses_variable_arrays(expect):
-        _, structs, _, _ = parse(
-            """
-            struct Arrays {
-                ints: uint8[]
-            }
-        """
-        )
-        expect(structs[0].members[0].array_size) == 0
+        expect(structs[0].members[1].array_size) == 10
 
     def parses_nested_struct_reference(expect):
         _, structs, _, _ = parse(

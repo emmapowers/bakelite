@@ -30,18 +30,4 @@
 #define BAKELITE_ERR_WRITE      -1
 #define BAKELITE_ERR_READ       -2
 #define BAKELITE_ERR_SEEK       -3
-#define BAKELITE_ERR_ALLOC      -4
-#define BAKELITE_ERR_ALLOC_BYTES -5
-#define BAKELITE_ERR_ALLOC_STRING -6
-
-/* Sized array for variable-length data */
-typedef struct {
-    void *data;
-    uint8_t size;
-} Bakelite_SizedArray;
-
-/* Sized array with 16-bit size */
-typedef struct {
-    void *data;
-    uint16_t size;
-} Bakelite_SizedArray16;
+#define BAKELITE_ERR_CAPACITY   -4  /* Data exceeds inline storage capacity */

@@ -17,7 +17,7 @@ struct __attribute__((packed)) TestMessage {
   uint8_t a;
   int32_t b;
   bool status;
-  char message[16];
+  char message[17];
   
   template<class T>
   int pack(T &stream) const {
@@ -31,7 +31,7 @@ struct __attribute__((packed)) TestMessage {
     rcode = write(stream, status);
     if(rcode != 0)
       return rcode;
-    rcode = writeString(stream, message, 16);
+    rcode = writeString(stream, message);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -49,7 +49,7 @@ struct __attribute__((packed)) TestMessage {
     rcode = read(stream, status);
     if(rcode != 0)
       return rcode;
-    rcode = readString(stream, message, 16);
+    rcode = readString(stream, message);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -60,7 +60,7 @@ struct __attribute__((packed)) TestMessage {
 
 struct __attribute__((packed)) Ack {
   uint8_t code;
-  char message[64];
+  char message[65];
   
   template<class T>
   int pack(T &stream) const {
@@ -68,7 +68,7 @@ struct __attribute__((packed)) Ack {
     rcode = write(stream, code);
     if(rcode != 0)
       return rcode;
-    rcode = writeString(stream, message, 64);
+    rcode = writeString(stream, message);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -80,7 +80,7 @@ struct __attribute__((packed)) Ack {
     rcode = read(stream, code);
     if(rcode != 0)
       return rcode;
-    rcode = readString(stream, message, 64);
+    rcode = readString(stream, message);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -89,7 +89,7 @@ struct __attribute__((packed)) Ack {
 
 
 
-template <class F = Bakelite::CobsFramer<Bakelite::Crc8, 73>>
+template <class F = Bakelite::CobsFramer<Bakelite::Crc8, 69>>
 class ProtocolBase {
 public:
   using ReadFn  = int (*)();
@@ -200,25 +200,19 @@ public:
   }
   
   // Copy-based decode (works with variable-length fields, compatible with both modes)
-  int decode(TestMessage &val, char *buffer = nullptr, size_t length = 0) {
+  int decode(TestMessage &val) {
     if(m_receivedMessage != Message::TestMessage) {
       return -1;
     }
-    Bakelite::BufferStream stream(
-      m_framer.buffer() + 1, m_receivedFrameLength,
-      buffer, length
-    );
+    Bakelite::BufferStream stream(m_framer.buffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   
-  int decode(Ack &val, char *buffer = nullptr, size_t length = 0) {
+  int decode(Ack &val) {
     if(m_receivedMessage != Message::Ack) {
       return -1;
     }
-    Bakelite::BufferStream stream(
-      m_framer.buffer() + 1, m_receivedFrameLength,
-      buffer, length
-    );
+    Bakelite::BufferStream stream(m_framer.buffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   

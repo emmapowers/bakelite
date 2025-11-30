@@ -63,9 +63,9 @@ struct ArrayStruct {
 }
 
 struct VariableLength {
-  a: bytes[]
-  b: string[]
-  c: uint8[]
-  d: bytes[][]
-  e: string[][]
+  a: bytes[64]
+  b: string[64]
+  c: uint8[16]
+  d: bytes[16][4]
+  e: string[16][4]
 }

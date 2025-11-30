@@ -30,12 +30,9 @@ Bakelite's protocol definition language lets you describe message structures for
 | `float32` | 4 bytes | IEEE 754 single precision |
 | `float64` | 8 bytes | IEEE 754 double precision |
 | `bool` | 1 byte | `true` (1) or `false` (0) |
-| `bytes[N]` | N bytes | Fixed-length byte array |
-| `bytes[]` | 1 + data | Variable-length bytes (length-prefixed, max 255) |
-| `string[N]` | N bytes | Fixed-length null-terminated string |
-| `string[]` | data + 1 | Variable-length null-terminated string |
-| `T[N]` | N × sizeof(T) | Fixed-length array |
-| `T[]` | 1 + elements | Variable-length array (length-prefixed, max 255) |
+| `bytes[N]` | 1 + data | Variable-length bytes, max N (length-prefixed) |
+| `string[N]` | data + 1 | Variable-length string, max N chars (null-terminated) |
+| `T[N]` | 1 + elements | Variable-length array, max N elements (length-prefixed) |
 
 ### Numeric Types
 
@@ -69,57 +66,28 @@ bool = true:
 
 ### Bytes
 
-#### Fixed Length `bytes[N]`
-
-Contains exactly N bytes. Any byte value is valid, including null.
+`bytes[N]` holds up to N bytes, prefixed with a 1-byte length. Any byte value is valid, including null.
 
 ```
-bytes[4] = [0x05, 0x00, 0xAF, 0xDE]:
-┌──────┬──────┬──────┬──────┐
-│  05  │  00  │  AF  │  DE  │
-└──────┴──────┴──────┴──────┘
-```
-
-#### Variable Length `bytes[]`
-
-Prefixed with a 1-byte length (max 255 bytes).
-
-```
-bytes[] = [0xAA, 0x00, 0xDE] (3 bytes):
-┌──────┬──────┬──────┬──────┐
-│  03  │  AA  │  00  │  DE  │
-└──────┴──────┴──────┴──────┘
-  len    ─── data ───
+bytes[8] = [0x05, 0x00, 0xAF, 0xDE] (4 bytes, max 8):
+┌──────┬──────┬──────┬──────┬──────┐
+│  04  │  05  │  00  │  AF  │  DE  │
+└──────┴──────┴──────┴──────┴──────┘
+  len    ─────── data ───────
 ```
 
 ### Strings
 
-All strings are null-terminated.
-
-#### Fixed Length `string[N]`
-
-A null-terminated string in an N-byte buffer. Characters after the null terminator are padding (undefined values).
+`string[N]` holds up to N characters, null-terminated. No length prefix or padding is used.
 
 ```
-string[5] = "Hey":
-┌──────┬──────┬──────┬──────┬──────┐
-│  H   │  e   │  y   │  00  │  ??  │
-└──────┴──────┴──────┴──────┴──────┘
-  ─── string ───  null   pad
-```
-
-A `string[N]` can hold at most N-1 characters (one byte reserved for null).
-
-#### Variable Length `string[]`
-
-A null-terminated string with no length prefix. The serializer reads until the first null byte.
-
-```
-string[] = "Hey":
+string[32] = "Hey":
 ┌──────┬──────┬──────┬──────┐
 │  H   │  e   │  y   │  00  │
 └──────┴──────┴──────┴──────┘
 ```
+
+A `string[N]` can hold at most N characters (one extra byte for null is used on the wire).
 
 ### Enums
 
@@ -174,36 +142,22 @@ struct Reading {
 
 ### Arrays
 
-#### Fixed Length `T[N]`
-
-N contiguous elements with no length prefix.
+`T[N]` holds up to N elements, prefixed with a 1-byte length.
 
 ```
-uint16[3] = [1, 2, 3]:
-┌──────┬──────┬──────┬──────┬──────┬──────┐
-│  01  │  00  │  02  │  00  │  03  │  00  │
-└──────┴──────┴──────┴──────┴──────┴──────┘
-  ─ [0] ─     ─ [1] ─     ─ [2] ─
+uint16[8] = [1, 2, 3] (3 elements, max 8):
+┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐
+│  03  │  01  │  00  │  02  │  00  │  03  │  00  │
+└──────┴──────┴──────┴──────┴──────┴──────┴──────┘
+  len    ─ [0] ─     ─ [1] ─     ─ [2] ─
 ```
 
-#### Variable Length `T[]`
-
-A 1-byte length prefix followed by elements (max 255 elements).
-
-```
-uint16[] = [1, 2] (2 elements):
-┌──────┬──────┬──────┬──────┬──────┐
-│  02  │  01  │  00  │  02  │  00  │
-└──────┴──────┴──────┴──────┴──────┘
-  len    ─ [0] ─     ─ [1] ─
-```
-
-#### Arrays of Variable-Length Types
+#### Arrays of Strings or Bytes
 
 For arrays of strings or bytes, the array brackets follow the type size:
 
-- `string[32][5]` — 5 fixed-length strings of 32 bytes each
-- `string[][5]` — 5 variable-length strings
+- `string[32][5]` — up to 5 strings of max 32 chars each
+- `bytes[16][4]` — up to 4 byte arrays of max 16 bytes each
 
 ## Wire Format
 
@@ -315,9 +269,9 @@ type          = primitive | NAME
 primitive     = "int8" | "int16" | "int32" | "int64"
               | "uint8" | "uint16" | "uint32" | "uint64"
               | "float32" | "float64" | "bool"
-              | ("bytes" | "string") "[" [NUMBER] "]"
+              | ("bytes" | "string") "[" NUMBER "]"
 
-array         = "[" [NUMBER] "]"
+array         = "[" NUMBER "]"
 annotations   = annotation+
 annotation    = "@" NAME ["(" arguments ")"]
 ```

@@ -18,37 +18,37 @@ struct SetName;
 /* Enums */
 /* Structs */
 typedef struct BAKELITE_PACKED {
-  char sender[32];
-  char text[256];
+  char sender[33];
+  char text[257];
 } ChatMessage;
 
 static inline int ChatMessage_pack(const ChatMessage *self, Bakelite_Buffer *buf) {
   int rcode = 0;
-  if ((rcode = bakelite_write_string_fixed(buf, self->sender, 32)) != 0) return rcode;
-  if ((rcode = bakelite_write_string_fixed(buf, self->text, 256)) != 0) return rcode;
+  if ((rcode = bakelite_write_string(buf, self->sender)) != 0) return rcode;
+  if ((rcode = bakelite_write_string(buf, self->text)) != 0) return rcode;
   return rcode;
 }
 
 static inline int ChatMessage_unpack(ChatMessage *self, Bakelite_Buffer *buf) {
   int rcode = 0;
-  if ((rcode = bakelite_read_string_fixed(buf, self->sender, 32)) != 0) return rcode;
-  if ((rcode = bakelite_read_string_fixed(buf, self->text, 256)) != 0) return rcode;
+  if ((rcode = bakelite_read_string(buf, self->sender, 33)) != 0) return rcode;
+  if ((rcode = bakelite_read_string(buf, self->text, 257)) != 0) return rcode;
   return rcode;
 }
 
 typedef struct BAKELITE_PACKED {
-  char name[32];
+  char name[33];
 } SetName;
 
 static inline int SetName_pack(const SetName *self, Bakelite_Buffer *buf) {
   int rcode = 0;
-  if ((rcode = bakelite_write_string_fixed(buf, self->name, 32)) != 0) return rcode;
+  if ((rcode = bakelite_write_string(buf, self->name)) != 0) return rcode;
   return rcode;
 }
 
 static inline int SetName_unpack(SetName *self, Bakelite_Buffer *buf) {
   int rcode = 0;
-  if ((rcode = bakelite_read_string_fixed(buf, self->name, 32)) != 0) return rcode;
+  if ((rcode = bakelite_read_string(buf, self->name, 33)) != 0) return rcode;
   return rcode;
 }
 
@@ -60,7 +60,7 @@ typedef enum {
 } Protocol_Message;
 
 /* Protocol buffer sizes */
-#define PROTOCOL_MAX_MESSAGE_SIZE 300
+#define PROTOCOL_MAX_MESSAGE_SIZE 290
 #define PROTOCOL_CRC_SIZE 0
 #define PROTOCOL_BUFFER_SIZE BAKELITE_FRAMER_BUFFER_SIZE(PROTOCOL_MAX_MESSAGE_SIZE, PROTOCOL_CRC_SIZE)
 #define PROTOCOL_MESSAGE_OFFSET BAKELITE_FRAMER_MESSAGE_OFFSET(PROTOCOL_MAX_MESSAGE_SIZE, PROTOCOL_CRC_SIZE)
@@ -187,29 +187,25 @@ static inline int Protocol_send_SetName(Protocol *self, const SetName *msg) {
 }
 
 /* Copy-based decode functions */
-static inline int Protocol_decode_ChatMessage(Protocol *self, ChatMessage *msg,
-                                                uint8_t *heap, size_t heap_size) {
+static inline int Protocol_decode_ChatMessage(Protocol *self, ChatMessage *msg) {
   if (self->received_message != Protocol_ChatMessage) {
     return -1;
   }
 
   Bakelite_Buffer buf;
-  bakelite_buffer_init_with_heap(&buf,
-    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length,
-    heap, heap_size);
+  bakelite_buffer_init(&buf,
+    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length);
   return ChatMessage_unpack(msg, &buf);
 }
 
-static inline int Protocol_decode_SetName(Protocol *self, SetName *msg,
-                                                uint8_t *heap, size_t heap_size) {
+static inline int Protocol_decode_SetName(Protocol *self, SetName *msg) {
   if (self->received_message != Protocol_SetName) {
     return -1;
   }
 
   Bakelite_Buffer buf;
-  bakelite_buffer_init_with_heap(&buf,
-    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length,
-    heap, heap_size);
+  bakelite_buffer_init(&buf,
+    bakelite_framer_buffer(&self->framer) + 1, self->received_frame_length);
   return SetName_unpack(msg, &buf);
 }
 

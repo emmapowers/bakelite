@@ -34,7 +34,7 @@ def describe_validation():
       struct TestStruct {
         a: TestEnum
         b: uint16
-        c: bytes[]
+        c: bytes[64]
       }
 
       protocol {

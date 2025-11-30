@@ -168,14 +168,11 @@ public:
 
   // Copy-based decode (works with variable-length fields, compatible with both modes)
   % for msg in message_ids:
-  int decode({{msg[0]}} &val, char *buffer = nullptr, size_t length = 0) {
+  int decode({{msg[0]}} &val) {
     if(m_receivedMessage != Message::{{msg[0]}}) {
       return -1;
     }
-    Bakelite::BufferStream stream(
-      m_framer.buffer() + 1, m_receivedFrameLength,
-      buffer, length
-    );
+    Bakelite::BufferStream stream(m_framer.buffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   {{""}}

@@ -11,16 +11,20 @@
 LITERAL: SIGNED_NUMBER | NUMBER | ESCAPED_STRING | CNAME
 comment: "#" /.+/
 
-LENGTH: "[" NUMBER* "]"
-TYPENAME: ("int8" | "int16" | "int32" | "int64" 
+TYPENAME: ("int8" | "int16" | "int32" | "int64"
   | "uint8" | "uint16" | "uint32" | "uint64"
   | "float16" | "float32"
   | "bool" )
 VARIABLE_TYPENAME: "bytes" | "string"
 prim: TYPENAME
-prim_variable.1: VARIABLE_TYPENAME "[" [NUMBER] "]"
-type: prim_variable | prim | CNAME
-array: "[" NUMBER* "]"
+
+// bytes[N] or string[N] - variable length with max capacity N
+prim_sized.2: VARIABLE_TYPENAME "[" NUMBER "]"
+
+type: prim_sized | prim | CNAME
+
+// [N] - variable length array with max capacity N
+array: "[" NUMBER "]"
 
 name: CNAME
 value: LITERAL

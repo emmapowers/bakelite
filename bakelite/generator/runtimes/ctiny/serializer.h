@@ -43,32 +43,19 @@ static inline int bakelite_write_float64(Bakelite_Buffer *buf, double val) {
     return bakelite_buffer_write(buf, &val, sizeof(val));
 }
 
-/* Write fixed-size bytes */
-static inline int bakelite_write_bytes_fixed(Bakelite_Buffer *buf, const uint8_t *val, uint32_t size) {
-    return bakelite_buffer_write(buf, val, size);
-}
-
-/* Write variable-length bytes (with length prefix) */
-static inline int bakelite_write_bytes(Bakelite_Buffer *buf, const Bakelite_SizedArray *val) {
-    int rcode = bakelite_write_uint8(buf, val->size);
+/* Write variable-length bytes (length prefix + data) */
+static inline int bakelite_write_bytes(Bakelite_Buffer *buf, const uint8_t *data, uint8_t len) {
+    int rcode = bakelite_write_uint8(buf, len);
     if (rcode != BAKELITE_OK) return rcode;
-    return bakelite_buffer_write(buf, val->data, val->size);
-}
-
-/* Write fixed-size string */
-static inline int bakelite_write_string_fixed(Bakelite_Buffer *buf, const char *val, uint32_t size) {
-    return bakelite_buffer_write(buf, val, size);
+    return bakelite_buffer_write(buf, data, len);
 }
 
 /* Write null-terminated string */
 static inline int bakelite_write_string(Bakelite_Buffer *buf, const char *val) {
-    if (val == NULL) {
-        return bakelite_write_uint8(buf, 0);
-    }
     uint32_t len = (uint32_t)strlen(val);
     int rcode = bakelite_buffer_write(buf, val, len);
     if (rcode != BAKELITE_OK) return rcode;
-    return bakelite_write_uint8(buf, 0);
+    return bakelite_write_uint8(buf, 0);  /* null terminator */
 }
 
 /* Read primitives */
@@ -116,58 +103,42 @@ static inline int bakelite_read_float64(Bakelite_Buffer *buf, double *val) {
     return bakelite_buffer_read(buf, val, sizeof(*val));
 }
 
-/* Read fixed-size bytes */
-static inline int bakelite_read_bytes_fixed(Bakelite_Buffer *buf, uint8_t *val, uint32_t size) {
-    return bakelite_buffer_read(buf, val, size);
-}
-
-/* Read variable-length bytes (with length prefix, allocates from heap) */
-static inline int bakelite_read_bytes(Bakelite_Buffer *buf, Bakelite_SizedArray *val) {
+/* Read variable-length bytes into inline storage (length prefix + data) */
+static inline int bakelite_read_bytes(Bakelite_Buffer *buf, uint8_t *data, uint8_t *len, uint8_t capacity) {
     uint8_t size;
     int rcode = bakelite_read_uint8(buf, &size);
     if (rcode != BAKELITE_OK) return rcode;
 
-    val->data = bakelite_buffer_alloc(buf, size);
-    val->size = size;
-
-    if (val->data == NULL) {
-        return BAKELITE_ERR_ALLOC_BYTES;
+    if (size > capacity) {
+        return BAKELITE_ERR_CAPACITY;
     }
 
-    return bakelite_buffer_read(buf, val->data, size);
+    *len = size;
+    return bakelite_buffer_read(buf, data, size);
 }
 
-/* Read fixed-size string */
-static inline int bakelite_read_string_fixed(Bakelite_Buffer *buf, char *val, uint32_t size) {
-    return bakelite_buffer_read(buf, val, size);
-}
-
-/* Read null-terminated string (allocates from heap) */
-static inline int bakelite_read_string(Bakelite_Buffer *buf, char **val) {
-    char *start = (char *)bakelite_buffer_alloc(buf, 1);
-    *val = start;
-
-    if (start == NULL) {
-        return BAKELITE_ERR_ALLOC_STRING;
-    }
-
-    char *current = start;
-    for (;;) {
-        int rcode = bakelite_buffer_read(buf, current, 1);
+/* Read null-terminated string into char array */
+static inline int bakelite_read_string(Bakelite_Buffer *buf, char *val, uint32_t capacity) {
+    uint32_t i = 0;
+    while (i < capacity - 1) {
+        int rcode = bakelite_buffer_read(buf, &val[i], 1);
         if (rcode != BAKELITE_OK) return rcode;
-
-        if (*current == '\0') {
+        if (val[i] == '\0') {
             return BAKELITE_OK;
         }
-
-        current = (char *)bakelite_buffer_alloc(buf, 1);
-        if (current == NULL) {
-            return BAKELITE_ERR_ALLOC_STRING;
-        }
+        i++;
     }
+    /* Read and discard until null terminator or error */
+    char c;
+    do {
+        int rcode = bakelite_buffer_read(buf, &c, 1);
+        if (rcode != BAKELITE_OK) return rcode;
+    } while (c != '\0');
+    val[capacity - 1] = '\0';
+    return BAKELITE_OK;
 }
 
-/* Write array of primitives (fixed size) */
+/* Write array of primitives */
 #define BAKELITE_DEFINE_WRITE_ARRAY(type, name) \
     static inline int bakelite_write_array_##name(Bakelite_Buffer *buf, const type *arr, uint32_t count) { \
         for (uint32_t i = 0; i < count; i++) { \
@@ -189,7 +160,7 @@ BAKELITE_DEFINE_WRITE_ARRAY(uint64_t, uint64)
 BAKELITE_DEFINE_WRITE_ARRAY(float, float32)
 BAKELITE_DEFINE_WRITE_ARRAY(double, float64)
 
-/* Read array of primitives (fixed size) */
+/* Read array of primitives */
 #define BAKELITE_DEFINE_READ_ARRAY(type, name) \
     static inline int bakelite_read_array_##name(Bakelite_Buffer *buf, type *arr, uint32_t count) { \
         for (uint32_t i = 0; i < count; i++) { \

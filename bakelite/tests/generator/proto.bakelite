@@ -6,7 +6,7 @@ struct TestMessage {
 }
 
 struct ArrayMessage {
-  numbers: int32[]
+  numbers: int32[64]
 }
 
 struct Ack {
@@ -14,7 +14,7 @@ struct Ack {
 }
 
 protocol {
-  maxLength = 256
+  maxLength = 257
   framing = COBS
   crc = CRC8
 

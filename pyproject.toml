@@ -25,6 +25,7 @@ dependencies = [
     "lark>=1.0",
     "jinja2>=3",
     "click>=8",
+    "rich>=13.0",
 ]
 
 [project.scripts]

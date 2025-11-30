@@ -85,7 +85,7 @@ TEST proto_send_message(void) {
     ASSERT_EQ(msg, Protocol_Ack);
 
     Ack result;
-    ASSERT_EQ(Protocol_decode_Ack(&protocol, &result, NULL, 0), 0);
+    ASSERT_EQ(Protocol_decode_Ack(&protocol, &result), 0);
     ASSERT_EQ(result.code, 0x22);
     PASS();
 }
@@ -105,10 +105,10 @@ TEST proto_send_larger_message(void) {
     };
     Protocol_send_TestMessage(&protocol, &input);
 
-    ASSERT_EQ(test_stream.pos, 26);
+    ASSERT_EQ(test_stream.pos, 23);
     char hex[64];
     hex_string(data, test_stream.pos, hex);
-    ASSERT_STR_EQ(hex, "0701222efbffff0d48656c6c6f20576f726c6421010101026200");
+    ASSERT_STR_EQ(hex, "0701222efbffff0d48656c6c6f20576f726c6421021500");
 
     size_t length = test_stream.pos;
     test_stream.pos = 0;
@@ -120,7 +120,7 @@ TEST proto_send_larger_message(void) {
     ASSERT_EQ(msg, Protocol_TestMessage);
 
     TestMessage result;
-    ASSERT_EQ(Protocol_decode_TestMessage(&protocol, &result, NULL, 0), 0);
+    ASSERT_EQ(Protocol_decode_TestMessage(&protocol, &result), 0);
     ASSERT_EQ(result.a, 0x22);
     ASSERT_EQ(result.b, -1234);
     ASSERT_EQ(result.status, false);
@@ -154,11 +154,11 @@ TEST proto_decode_wrong_message(void) {
 
     /* Try to decode as wrong message type */
     TestMessage result;
-    ASSERT_EQ(Protocol_decode_TestMessage(&protocol, &result, NULL, 0), -1);
+    ASSERT_EQ(Protocol_decode_TestMessage(&protocol, &result), -1);
     PASS();
 }
 
-TEST proto_receive_no_dynamic_memory(void) {
+TEST proto_receive_array_message(void) {
     uint8_t data[256];
     stream_init(data, 256);
 
@@ -166,42 +166,10 @@ TEST proto_receive_no_dynamic_memory(void) {
     Protocol_init(&protocol, stream_read, stream_write);
 
     ArrayMessage msg;
-    int32_t numbers[3] = {1234, -1234, 456};
-    msg.numbers.data = numbers;
-    msg.numbers.size = 3;
-    Protocol_send_ArrayMessage(&protocol, &msg);
-
-    ASSERT_EQ(test_stream.pos, 17);
-    char hex[64];
-    hex_string(data, test_stream.pos, hex);
-    ASSERT_STR_EQ(hex, "050303d20401072efbffffc8010102bb00");
-
-    size_t length = test_stream.pos;
-    test_stream.pos = 0;
-
-    for (; test_stream.pos < length - 1;) {
-        ASSERT_EQ(Protocol_poll(&protocol), Protocol_NoMessage);
-    }
-    Protocol_Message msgId = Protocol_poll(&protocol);
-    ASSERT_EQ(msgId, Protocol_ArrayMessage);
-
-    /* Decode without providing heap - should fail */
-    ArrayMessage result;
-    ASSERT_EQ(Protocol_decode_ArrayMessage(&protocol, &result, NULL, 0), -4);
-    PASS();
-}
-
-TEST proto_receive_dynamic(void) {
-    uint8_t data[256];
-    stream_init(data, 256);
-
-    Protocol protocol;
-    Protocol_init(&protocol, stream_read, stream_write);
-
-    ArrayMessage msg;
-    int32_t numbers[3] = {1234, -1234, 456};
-    msg.numbers.data = numbers;
-    msg.numbers.size = 3;
+    msg.numbers.data[0] = 1234;
+    msg.numbers.data[1] = -1234;
+    msg.numbers.data[2] = 456;
+    msg.numbers.len = 3;
     Protocol_send_ArrayMessage(&protocol, &msg);
 
     ASSERT_EQ(test_stream.pos, 17);
@@ -219,12 +187,11 @@ TEST proto_receive_dynamic(void) {
     ASSERT_EQ(msgId, Protocol_ArrayMessage);
 
     ArrayMessage result;
-    uint8_t heap[64];
-    ASSERT_EQ(Protocol_decode_ArrayMessage(&protocol, &result, heap, sizeof(heap)), 0);
-    ASSERT_EQ(result.numbers.size, 3);
-    ASSERT_EQ(((int32_t *)result.numbers.data)[0], 1234);
-    ASSERT_EQ(((int32_t *)result.numbers.data)[1], -1234);
-    ASSERT_EQ(((int32_t *)result.numbers.data)[2], 456);
+    ASSERT_EQ(Protocol_decode_ArrayMessage(&protocol, &result), 0);
+    ASSERT_EQ(result.numbers.len, 3);
+    ASSERT_EQ(result.numbers.data[0], 1234);
+    ASSERT_EQ(result.numbers.data[1], -1234);
+    ASSERT_EQ(result.numbers.data[2], 456);
     PASS();
 }
 
@@ -232,8 +199,7 @@ SUITE(protocol) {
     RUN_TEST(proto_send_message);
     RUN_TEST(proto_send_larger_message);
     RUN_TEST(proto_decode_wrong_message);
-    RUN_TEST(proto_receive_no_dynamic_memory);
-    RUN_TEST(proto_receive_dynamic);
+    RUN_TEST(proto_receive_array_message);
 }
 
 GREATEST_MAIN_DEFS();

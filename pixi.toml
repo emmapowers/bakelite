@@ -19,6 +19,7 @@ mkdocs = ">=1.6"
 ipython = "*"
 pyserial = "*"
 platformio = ">=6"
+rich = ">=14.2.0,<15"
 
 [pypi-dependencies]
 dataclasses-json = ">=0.5"

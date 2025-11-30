@@ -98,11 +98,14 @@ The protocol implementation contains the type definitions and serializers from y
 |uint8, uint16, uint32, uint64 |uint8_t, uint16_t, uint32_t, uint64_t |
 |float32, float64              |float, double                         |
 |bool                          |bool                                  |
-|bytes[n]                      |uint8_t[n]                            |
-|string[n]                     |char[n]                               |
-|T[n] (fixed array)            |T[n]                                  |
+|bytes[N]                      |struct { uint8_t data[N]; uint8_t len; } |
+|string[N]                     |char[N+1]                             |
+|T[N]                          |struct { T data[N]; uint8_t len; }    |
 |struct T                      |typedef struct { } T                  |
 |enum T: S                     |typedef enum { } T                    |
+
+All `bytes[N]` and `T[N]` types use inline anonymous structs with a `data` array and `len` field.
+Strings are null-terminated character arrays with space for N characters plus null terminator.
 
 ### Protocol
 
@@ -135,8 +138,8 @@ Copy-based send. Serializes and sends a message.
 
 **returns:** 0 on success.
 
-##### Protocol_decode_T(Protocol *self, T *msg, uint8_t *heap, size_t heap_size) -> int
-Copy-based decode for variable-length fields.
+##### Protocol_decode_T(Protocol *self, T *msg) -> int
+Copy-based decode. Use when you need the data to persist beyond the next `Protocol_poll()`.
 
 **returns:** 0 on success.
 

@@ -71,6 +71,10 @@ def _find_one(args: list[Any], class_type: type[object]) -> Any:
     if len(filtered) > 1:
         raise RuntimeError(f"Found more than one {class_type}")
 
+    # Return _Array objects as-is (they have multiple fields we need)
+    if isinstance(filtered[0], _Array):
+        return filtered[0]
+
     if hasattr(filtered[0], "value"):
         return filtered[0].value
     return filtered[0]
@@ -87,9 +91,7 @@ class TreeTransformer(Transformer):
     """Transform parse tree into protocol types."""
 
     def array(self, args: list[Any]) -> _Array:
-        if len(args) > 0:
-            return _Array(value=int(args[0]))
-        return _Array(value=0)
+        return _Array(value=int(args[0]))
 
     def argument_val(self, args: list[Any]) -> ProtoAnnotationArg:
         if len(args) == 1:
@@ -128,12 +130,10 @@ class TreeTransformer(Transformer):
         return _Number(value=int(args[0]))
 
     def prim(self, args: list[Any]) -> ProtoType:
-        return ProtoType(name=str(args[0]), size=0)
+        return ProtoType(name=str(args[0]), size=None)
 
-    def prim_variable(self, args: list[Any]) -> ProtoType:
-        if len(args) > 1 and args[1] is not None:
-            return ProtoType(name=str(args[0]), size=int(args[1]))
-        return ProtoType(name=str(args[0]), size=0)
+    def prim_sized(self, args: list[Any]) -> ProtoType:
+        return ProtoType(name=str(args[0]), size=int(args[1]))
 
     def proto(self, args: list[Any]) -> Protocol:
         ids = _find_one(args, _ProtoMessageIds)
@@ -173,13 +173,14 @@ class TreeTransformer(Transformer):
         )
 
     def struct_member(self, args: list[Any]) -> ProtoStructMember:
+        array = _find_one(args, _Array)
         return ProtoStructMember(
             name=_find_one(args, _Name),
             type=_find_one(args, ProtoType),
             value=_find_one(args, _Value),
             comment=_find_one(args, _Comment),
             annotations=_find_many(args, ProtoAnnotation),
-            array_size=_find_one(args, _Array),
+            array_size=array.value if array else None,
         )
 
     def value(self, args: list[Any]) -> _Value:

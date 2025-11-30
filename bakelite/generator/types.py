@@ -8,7 +8,12 @@ from dataclasses_json import DataClassJsonMixin
 
 @dataclass
 class ProtoType(DataClassJsonMixin):
-    """Represents a primitive or user-defined type."""
+    """Represents a primitive or user-defined type.
+
+    For bytes/string types:
+    - size=N: variable length with max capacity N
+    - size=None: user-defined type (struct/enum) or fixed primitive
+    """
 
     name: str
     size: int | None
@@ -53,7 +58,12 @@ class ProtoEnum(DataClassJsonMixin):
 
 @dataclass
 class ProtoStructMember(DataClassJsonMixin):
-    """Represents a member of a struct."""
+    """Represents a member of a struct.
+
+    For arrays:
+    - array_size=N: variable length array with max capacity N
+    - array_size=None: not an array
+    """
 
     type: ProtoType
     name: str

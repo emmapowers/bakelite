@@ -8,7 +8,6 @@ struct SetName {
 }
 
 protocol {
-  maxLength = 300
   framing = COBS
   crc = None
 

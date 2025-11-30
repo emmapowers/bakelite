@@ -5,6 +5,7 @@ from copy import copy
 
 from jinja2 import Environment, PackageLoader
 
+from .sizes import calculate_sizes
 from .types import Protocol, ProtoEnum, ProtoStruct, ProtoStructMember, ProtoType
 
 env = Environment(
@@ -30,8 +31,6 @@ PRIMITIVE_TYPE_MAP = {
     "uint64": "uint64_t",
     "float32": "float",
     "float64": "double",
-    "bytes": "uint8_t",
-    "string": "char",
 }
 
 # Map primitive type names to serializer function suffixes
@@ -51,40 +50,73 @@ SERIALIZER_SUFFIX_MAP = {
 
 
 def _map_type(t: ProtoType) -> str:
+    """Map bakelite type to C type (for primitives and user types)."""
     return PRIMITIVE_TYPE_MAP.get(t.name, t.name)
 
 
 def _map_type_member(member: ProtoStructMember) -> str:
-    type_name = _map_type(member.type)
+    """Map struct member to C type declaration.
 
-    # Variable-length bytes array
-    if member.type.name == "bytes" and member.type.size == 0 and member.array_size == 0:
-        return "Bakelite_SizedArray"  # Array of SizedArrays not supported yet
-    if member.type.name == "bytes" and member.type.size == 0:
-        return "Bakelite_SizedArray"
-    # Variable-length string array
-    if member.type.name == "string" and member.type.size == 0 and member.array_size == 0:
-        return "Bakelite_SizedArray"  # Array of strings not supported yet
-    if member.type.name == "string" and member.type.size == 0:
-        return "char*"
-    # Variable-length typed array
-    if member.array_size == 0:
-        return "Bakelite_SizedArray"
-    return type_name
+    For bytes[N] and T[N] arrays, this returns 'struct' which will be
+    followed by the inline struct definition in the template.
+    For string[N] (no array), returns 'char'.
+    """
+    # bytes[N] -> inline struct { uint8_t data[N]; uint8_t len; }
+    if member.type.name == "bytes" and member.type.size is not None:
+        return "struct"
+
+    # string[N] without array -> char[N+1]
+    # string[N][M] (array of strings) -> inline struct
+    if member.type.name == "string" and member.type.size is not None:
+        if member.array_size is not None:
+            return "struct"
+        return "char"
+
+    # T[N] arrays -> inline struct { T data[N]; uint8_t len; }
+    if member.array_size is not None:
+        return "struct"
+
+    # Primitives and user types
+    return _map_type(member.type)
 
 
 def _size_postfix(member: ProtoStructMember) -> str:
-    if member.type.name in {"bytes", "string"}:
-        if member.type.size == 0:
-            return ""
-        return f"[{member.type.size}]"
+    """Get size suffix for the member declaration."""
+    # For string[N], add [N+1] for null terminator
+    if member.type.name == "string" and member.type.size is not None and member.array_size is None:
+        return f"[{member.type.size + 1}]"
     return ""
 
 
+def _inline_struct_def(member: ProtoStructMember) -> str:
+    """Generate inline struct definition for bytes[N] or T[N] arrays."""
+    # bytes[N] -> { uint8_t data[N]; uint8_t len; }
+    if member.type.name == "bytes" and member.type.size is not None and member.array_size is None:
+        return f"{{ uint8_t data[{member.type.size}]; uint8_t len; }}"
+
+    # T[N] arrays
+    if member.array_size is not None:
+        # Special case for string arrays: char data[N][M+1]
+        if member.type.name == "string" and member.type.size is not None:
+            return f"{{ char data[{member.array_size}][{member.type.size + 1}]; uint8_t len; }}"
+        inner_type = _get_element_type(member.type)
+        return f"{{ {inner_type} data[{member.array_size}]; uint8_t len; }}"
+
+    return ""
+
+
+def _get_element_type(t: ProtoType) -> str:
+    """Get C type for array elements."""
+    if t.name == "bytes" and t.size is not None:
+        return f"struct {{ uint8_t data[{t.size}]; uint8_t len; }}"
+    if t.name == "string" and t.size is not None:
+        return f"char[{t.size + 1}]"
+    return _map_type(t)
+
+
 def _array_postfix(member: ProtoStructMember) -> str:
-    if member.array_size is None or member.array_size == 0:
-        return ""
-    return f"[{member.array_size}]"
+    """Get array postfix (no longer used for variable arrays)."""
+    return ""
 
 
 def overhead(size: int, crc_size: int) -> int:
@@ -101,47 +133,37 @@ def render(
     *,
     unpacked: bool = False,
 ) -> str:
-    """Render a protocol definition to C source code.
-
-    Args:
-        enums: Enum definitions from the protocol
-        structs: Struct definitions from the protocol
-        proto: Protocol definition (framing, CRC, message IDs)
-        comments: Top-level comments from the protocol file
-        unpacked: If True, generate aligned structs.
-                  If False (default), generate packed structs for zero-copy.
-    """
+    """Render a protocol definition to C source code."""
     enums_types = {enum.name: enum for enum in enums}
     structs_types = {struct.name: struct for struct in structs}
 
-    def _write_type(member: ProtoStructMember, is_array_element: bool = False) -> str:
+    def _write_type(member: ProtoStructMember) -> str:
+        # Handle arrays (always variable-length now)
         if member.array_size is not None:
-            # Array handling - use GCC statement-expression extension ({ ... })
-            if member.array_size > 0:
-                # Fixed-size array
-                tmp_member = copy(member)
-                tmp_member.array_size = None
-                tmp_member.name = f"self->{member.name}[i]"
-                inner_write = _write_type(tmp_member, is_array_element=True)
-                return f"""({{ for (uint32_t i = 0; i < {member.array_size}; i++) {{
-      if ((rcode = {inner_write}) != 0) return rcode;
-    }} 0; }})"""
-            # Variable-length array
             tmp_member = copy(member)
             tmp_member.array_size = None
-            c_type = _map_type(member.type)
+
+            # Generate inner write for each element
             if member.type.name in structs_types:
-                # For struct arrays, access as struct pointers
-                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+                tmp_member.name = f"self->{member.name}.data[i]"
+                inner_write = _write_type(tmp_member)
+            elif member.type.name == "bytes" and member.type.size is not None:
+                inner_write = (
+                    f"bakelite_write_bytes(buf, self->{member.name}.data[i].data, "
+                    f"self->{member.name}.data[i].len)"
+                )
+            elif member.type.name == "string" and member.type.size is not None:
+                inner_write = f"bakelite_write_string(buf, self->{member.name}.data[i])"
             else:
-                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
-            inner_write = _write_type(tmp_member, is_array_element=True)
-            return f"""({{ if ((rcode = bakelite_write_uint8(buf, self->{member.name}.size)) != 0) return rcode;
-    for (uint8_t i = 0; i < self->{member.name}.size; i++) {{
+                tmp_member.name = f"self->{member.name}.data[i]"
+                inner_write = _write_type(tmp_member)
+
+            return f"""({{ if ((rcode = bakelite_write_uint8(buf, self->{member.name}.len)) != 0) return rcode;
+    for (uint8_t i = 0; i < self->{member.name}.len; i++) {{
       if ((rcode = {inner_write}) != 0) return rcode;
     }} 0; }})"""
 
-        # Use self-> prefix if not already present (for nested arrays, name includes self-> or cast)
+        # Use self-> prefix if not already present
         name = member.name
         needs_prefix = not (name.startswith("self->") or name.startswith("("))
         if needs_prefix:
@@ -150,54 +172,58 @@ def render(
         if member.type.name in enums_types:
             underlying = SERIALIZER_SUFFIX_MAP[enums_types[member.type.name].type.name]
             return f"bakelite_write_{underlying}(buf, ({_map_type(enums_types[member.type.name].type)}){name})"
+
         if member.type.name in structs_types:
             return f"{member.type.name}_pack(&{name}, buf)"
+
         if member.type.name in SERIALIZER_SUFFIX_MAP:
             suffix = SERIALIZER_SUFFIX_MAP[member.type.name]
             return f"bakelite_write_{suffix}(buf, {name})"
+
         if member.type.name == "bytes":
-            if member.type.size != 0:
-                return f"bakelite_write_bytes_fixed(buf, {name}, {member.type.size})"
-            return f"bakelite_write_bytes(buf, &{name})"
+            # bytes[N] -> write length prefix + data
+            return f"bakelite_write_bytes(buf, {name}.data, {name}.len)"
+
         if member.type.name == "string":
-            if member.type.size != 0:
-                return f"bakelite_write_string_fixed(buf, {name}, {member.type.size})"
+            # string[N] -> write null-terminated string
             return f"bakelite_write_string(buf, {name})"
+
         raise RuntimeError(f"Unknown type {member.type.name}")
 
-    def _read_type(member: ProtoStructMember, is_array_element: bool = False) -> str:
+    def _read_type(member: ProtoStructMember) -> str:
+        # Handle arrays (always variable-length now)
         if member.array_size is not None:
-            # Array handling - use GCC statement-expression extension ({ ... })
-            if member.array_size > 0:
-                # Fixed-size array
-                tmp_member = copy(member)
-                tmp_member.array_size = None
-                tmp_member.name = f"self->{member.name}[i]"
-                inner_read = _read_type(tmp_member, is_array_element=True)
-                return f"""({{ for (uint32_t i = 0; i < {member.array_size}; i++) {{
-      if ((rcode = {inner_read}) != 0) return rcode;
-    }} 0; }})"""
-            # Variable-length array
             tmp_member = copy(member)
             tmp_member.array_size = None
-            c_type = _map_type(member.type)
+
+            # Generate inner read for each element
             if member.type.name in structs_types:
-                # For struct arrays, access as struct pointers
-                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+                tmp_member.name = f"self->{member.name}.data[i]"
+                inner_read = _read_type(tmp_member)
+            elif member.type.name == "bytes" and member.type.size is not None:
+                inner_read = (
+                    f"bakelite_read_bytes(buf, self->{member.name}.data[i].data, "
+                    f"&self->{member.name}.data[i].len, {member.type.size})"
+                )
+            elif member.type.name == "string" and member.type.size is not None:
+                inner_read = (
+                    f"bakelite_read_string(buf, self->{member.name}.data[i], "
+                    f"{member.type.size + 1})"
+                )
             else:
-                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
-            inner_read = _read_type(tmp_member, is_array_element=True)
+                tmp_member.name = f"self->{member.name}.data[i]"
+                inner_read = _read_type(tmp_member)
+
             return f"""({{
-      uint8_t arr_size;
-      if ((rcode = bakelite_read_uint8(buf, &arr_size)) != 0) return rcode;
-      self->{member.name}.size = arr_size;
-      self->{member.name}.data = bakelite_buffer_alloc(buf, arr_size * sizeof({c_type}));
-      if (self->{member.name}.data == NULL) return BAKELITE_ERR_ALLOC;
-      for (uint8_t i = 0; i < arr_size; i++) {{
+      uint8_t arr_len;
+      if ((rcode = bakelite_read_uint8(buf, &arr_len)) != 0) return rcode;
+      if (arr_len > {member.array_size}) return BAKELITE_ERR_CAPACITY;
+      self->{member.name}.len = arr_len;
+      for (uint8_t i = 0; i < arr_len; i++) {{
         if ((rcode = {inner_read}) != 0) return rcode;
       }} 0; }})"""
 
-        # Use self-> prefix if not already present (for nested arrays, name includes self-> or cast)
+        # Use self-> prefix if not already present
         name = member.name
         needs_prefix = not (name.startswith("self->") or name.startswith("("))
         if needs_prefix:
@@ -207,21 +233,30 @@ def render(
             underlying = SERIALIZER_SUFFIX_MAP[enums_types[member.type.name].type.name]
             underlying_type = _map_type(enums_types[member.type.name].type)
             enum_type = member.type.name
-            # Use a temporary variable to avoid writing only the first byte of the enum
-            return f"""({{ {underlying_type} tmp; if ((rcode = bakelite_read_{underlying}(buf, &tmp)) != 0) return rcode; {name} = ({enum_type})tmp; 0; }})"""
+            return (
+                f"({{ {underlying_type} tmp; if ((rcode = bakelite_read_{underlying}(buf, &tmp)) "
+                f"!= 0) return rcode; {name} = ({enum_type})tmp; 0; }})"
+            )
+
         if member.type.name in structs_types:
             return f"{member.type.name}_unpack(&{name}, buf)"
+
         if member.type.name in SERIALIZER_SUFFIX_MAP:
             suffix = SERIALIZER_SUFFIX_MAP[member.type.name]
             return f"bakelite_read_{suffix}(buf, &{name})"
+
         if member.type.name == "bytes":
-            if member.type.size != 0:
-                return f"bakelite_read_bytes_fixed(buf, {name}, {member.type.size})"
-            return f"bakelite_read_bytes(buf, &{name})"
+            # bytes[N] -> read into inline storage
+            if member.type.size is None:
+                raise RuntimeError("bytes type must have a size")
+            return f"bakelite_read_bytes(buf, {name}.data, &{name}.len, {member.type.size})"
+
         if member.type.name == "string":
-            if member.type.size != 0:
-                return f"bakelite_read_string_fixed(buf, {name}, {member.type.size})"
-            return f"bakelite_read_string(buf, &{name})"
+            # string[N] -> read into char array
+            if member.type.size is None:
+                raise RuntimeError("string type must have a size")
+            return f"bakelite_read_string(buf, {name}, {member.type.size + 1})"
+
         raise RuntimeError(f"Unknown type {member.type.name}")
 
     message_ids: list[tuple[str, int]] = []
@@ -239,9 +274,6 @@ def render(
         if framing == "":
             raise RuntimeError("A frame type must be specified")
 
-        if max_length_opt is None:
-            raise RuntimeError("maxLength must be specified")
-
         if crc == "none":
             crc_type = "BAKELITE_CRC_NONE"
             crc_size = 0
@@ -257,7 +289,27 @@ def render(
         else:
             raise RuntimeError(f"Unknown CRC type {crc}")
 
-        max_length = int(max_length_opt)
+        # Calculate sizes to determine/validate maxLength
+        size_info = calculate_sizes(enums, structs, proto)
+
+        if max_length_opt is None:
+            if size_info.max_message_size is None:
+                raise RuntimeError(
+                    "maxLength must be specified when protocol contains unbounded types"
+                )
+            max_length = size_info.max_message_size
+        else:
+            max_length = int(max_length_opt)
+            if size_info.max_message_size is not None and max_length < size_info.max_message_size:
+                raise RuntimeError(
+                    f"maxLength ({max_length}) is less than maximum message size "
+                    f"({size_info.max_message_size})"
+                )
+            if max_length < size_info.min_message_size:
+                raise RuntimeError(
+                    f"maxLength ({max_length}) is less than minimum message size "
+                    f"({size_info.min_message_size})"
+                )
 
         if framing != "cobs":
             raise RuntimeError(f"Unknown framing type {framing}")
@@ -269,6 +321,7 @@ def render(
         comments=comments,
         map_type=_map_type,
         map_type_member=_map_type_member,
+        inline_struct_def=_inline_struct_def,
         array_postfix=_array_postfix,
         size_postfix=_size_postfix,
         write_type=_write_type,

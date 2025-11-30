@@ -14,16 +14,16 @@ static_assert(BAKELITE_UNALIGNED_OK,
   "This code requires unaligned memory access. Regenerate with --unpacked for "
   "Cortex-M0, RISC-V, ESP32, PIC32, or other platforms without unaligned access support.");
 struct __attribute__((packed)) ChatMessage {
-  char sender[32];
-  char text[256];
+  char sender[33];
+  char text[257];
   
   template<class T>
   int pack(T &stream) const {
     int rcode = 0;
-    rcode = writeString(stream, sender, 32);
+    rcode = writeString(stream, sender);
     if(rcode != 0)
       return rcode;
-    rcode = writeString(stream, text, 256);
+    rcode = writeString(stream, text);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -32,10 +32,10 @@ struct __attribute__((packed)) ChatMessage {
   template<class T>
   int unpack(T &stream) {
     int rcode = 0;
-    rcode = readString(stream, sender, 32);
+    rcode = readString(stream, sender);
     if(rcode != 0)
       return rcode;
-    rcode = readString(stream, text, 256);
+    rcode = readString(stream, text);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -45,12 +45,12 @@ struct __attribute__((packed)) ChatMessage {
 
 
 struct __attribute__((packed)) SetName {
-  char name[32];
+  char name[33];
   
   template<class T>
   int pack(T &stream) const {
     int rcode = 0;
-    rcode = writeString(stream, name, 32);
+    rcode = writeString(stream, name);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -59,7 +59,7 @@ struct __attribute__((packed)) SetName {
   template<class T>
   int unpack(T &stream) {
     int rcode = 0;
-    rcode = readString(stream, name, 32);
+    rcode = readString(stream, name);
     if(rcode != 0)
       return rcode;
     return rcode;
@@ -68,7 +68,7 @@ struct __attribute__((packed)) SetName {
 
 
 
-template <class F = Bakelite::CobsFramer<Bakelite::CrcNoop, 303>>
+template <class F = Bakelite::CobsFramer<Bakelite::CrcNoop, 293>>
 class ProtocolBase {
 public:
   using ReadFn  = int (*)();
@@ -179,25 +179,19 @@ public:
   }
   
   // Copy-based decode (works with variable-length fields, compatible with both modes)
-  int decode(ChatMessage &val, char *buffer = nullptr, size_t length = 0) {
+  int decode(ChatMessage &val) {
     if(m_receivedMessage != Message::ChatMessage) {
       return -1;
     }
-    Bakelite::BufferStream stream(
-      m_framer.buffer() + 1, m_receivedFrameLength,
-      buffer, length
-    );
+    Bakelite::BufferStream stream(m_framer.buffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   
-  int decode(SetName &val, char *buffer = nullptr, size_t length = 0) {
+  int decode(SetName &val) {
     if(m_receivedMessage != Message::SetName) {
       return -1;
     }
-    Bakelite::BufferStream stream(
-      m_framer.buffer() + 1, m_receivedFrameLength,
-      buffer, length
-    );
+    Bakelite::BufferStream stream(m_framer.buffer() + 1, m_receivedFrameLength);
     return val.unpack(stream);
   }
   
