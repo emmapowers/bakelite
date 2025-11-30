@@ -39,6 +39,7 @@ Icon*
 /build/
 /dist/
 *.spec
+**/build/
 
 # Sublime Text
 *.sublime-workspace

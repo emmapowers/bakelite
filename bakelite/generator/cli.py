@@ -5,7 +5,7 @@ from pathlib import Path
 
 import click
 
-from bakelite.generator import cpptiny, parse, python
+from bakelite.generator import cpptiny, ctiny, parse, python
 
 
 @click.group()
@@ -14,7 +14,7 @@ def cli() -> None:
 
 
 @cli.command()
-@click.option("--language", "-l", required=True, help="Target language (python, cpptiny)")
+@click.option("--language", "-l", required=True, help="Target language (python, cpptiny, ctiny)")
 @click.option("--input", "-i", "input_file", required=True, help="Input protocol file")
 @click.option("--output", "-o", "output_file", required=True, help="Output file")
 @click.option(
@@ -46,6 +46,8 @@ def gen(
         generated_file = python.render(*proto_def, runtime_import=import_path)
     elif language == "cpptiny":
         generated_file = cpptiny.render(*proto_def, unpacked=unpacked)
+    elif language == "ctiny":
+        generated_file = ctiny.render(*proto_def, unpacked=unpacked)
     else:
         print(f"Unknown language: {language}")
         sys.exit(1)
@@ -55,13 +57,17 @@ def gen(
 
 
 @cli.command()
-@click.option("--language", "-l", required=True, help="Target language (python, cpptiny)")
+@click.option("--language", "-l", required=True, help="Target language (python, cpptiny, ctiny)")
 @click.option("--output", "-o", "output_path", default=".", help="Output directory")
 @click.option("--name", default="bakelite_runtime", help="Runtime folder name (python only)")
 def runtime(language: str, output_path: str, name: str) -> None:
     """Generate runtime support code."""
     if language == "cpptiny":
         generated_file = cpptiny.runtime()
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(generated_file)
+    elif language == "ctiny":
+        generated_file = ctiny.runtime()
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(generated_file)
     elif language == "python":
