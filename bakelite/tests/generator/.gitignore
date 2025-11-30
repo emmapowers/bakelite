@@ -3,3 +3,8 @@ cpptiny
 bakelite.h
 proto.h
 cpptiny.dSYM/
+struct-ctiny.h
+ctiny
+bakelite-ctiny.h
+proto-ctiny.h
+ctiny.dSYM/

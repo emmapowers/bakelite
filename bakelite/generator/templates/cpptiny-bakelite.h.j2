@@ -12,9 +12,25 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef __AVR__
 #include <avr/pgmspace.h>
+#endif
+
+/*
+ * Common C99 implementations (CRC and COBS)
+ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+{{include('common/crc.h')}}
+
+{{include('common/cobs.h')}}
+
+#ifdef __cplusplus
+}
 #endif
 
 namespace Bakelite {
@@ -47,7 +63,7 @@ namespace Bakelite {
   {{include('cobs.h')}}
 }
 
-/* 
+/*
 The MIT License
 ---------------
 
@@ -67,7 +83,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE. 
+THE SOFTWARE.
 */
 
 #endif // __BAKELITE_H__

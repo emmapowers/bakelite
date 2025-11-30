@@ -114,32 +114,38 @@ def render(
     enums_types = {enum.name: enum for enum in enums}
     structs_types = {struct.name: struct for struct in structs}
 
-    def _write_type(member: ProtoStructMember) -> str:
+    def _write_type(member: ProtoStructMember, is_array_element: bool = False) -> str:
         if member.array_size is not None:
-            # Array handling
+            # Array handling - use GCC statement-expression extension ({ ... })
             if member.array_size > 0:
                 # Fixed-size array
                 tmp_member = copy(member)
                 tmp_member.array_size = None
                 tmp_member.name = f"self->{member.name}[i]"
-                inner_write = _write_type(tmp_member)
-                return f"""for (uint32_t i = 0; i < {member.array_size}; i++) {{
+                inner_write = _write_type(tmp_member, is_array_element=True)
+                return f"""({{ for (uint32_t i = 0; i < {member.array_size}; i++) {{
       if ((rcode = {inner_write}) != 0) return rcode;
-    }}
-    rcode = 0"""
+    }} 0; }})"""
             # Variable-length array
             tmp_member = copy(member)
             tmp_member.array_size = None
-            tmp_member.name = f"(({_map_type(member.type)}*)self->{member.name}.data)[i]"
-            inner_write = _write_type(tmp_member)
-            return f"""bakelite_write_uint8(buf, self->{member.name}.size);
+            c_type = _map_type(member.type)
+            if member.type.name in structs_types:
+                # For struct arrays, access as struct pointers
+                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+            else:
+                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+            inner_write = _write_type(tmp_member, is_array_element=True)
+            return f"""({{ if ((rcode = bakelite_write_uint8(buf, self->{member.name}.size)) != 0) return rcode;
     for (uint8_t i = 0; i < self->{member.name}.size; i++) {{
       if ((rcode = {inner_write}) != 0) return rcode;
-    }}
-    rcode = 0"""
+    }} 0; }})"""
 
-        # Use self-> prefix if not already present (for nested arrays, name includes self->)
-        name = member.name if member.name.startswith("self->") else f"self->{member.name}"
+        # Use self-> prefix if not already present (for nested arrays, name includes self-> or cast)
+        name = member.name
+        needs_prefix = not (name.startswith("self->") or name.startswith("("))
+        if needs_prefix:
+            name = f"self->{name}"
 
         if member.type.name in enums_types:
             underlying = SERIALIZER_SUFFIX_MAP[enums_types[member.type.name].type.name]
@@ -159,43 +165,50 @@ def render(
             return f"bakelite_write_string(buf, {name})"
         raise RuntimeError(f"Unknown type {member.type.name}")
 
-    def _read_type(member: ProtoStructMember) -> str:
+    def _read_type(member: ProtoStructMember, is_array_element: bool = False) -> str:
         if member.array_size is not None:
-            # Array handling
+            # Array handling - use GCC statement-expression extension ({ ... })
             if member.array_size > 0:
                 # Fixed-size array
                 tmp_member = copy(member)
                 tmp_member.array_size = None
                 tmp_member.name = f"self->{member.name}[i]"
-                inner_read = _read_type(tmp_member)
-                return f"""for (uint32_t i = 0; i < {member.array_size}; i++) {{
+                inner_read = _read_type(tmp_member, is_array_element=True)
+                return f"""({{ for (uint32_t i = 0; i < {member.array_size}; i++) {{
       if ((rcode = {inner_read}) != 0) return rcode;
-    }}
-    rcode = 0"""
+    }} 0; }})"""
             # Variable-length array
             tmp_member = copy(member)
             tmp_member.array_size = None
-            tmp_member.name = f"(({_map_type(member.type)}*)self->{member.name}.data)[i]"
-            inner_read = _read_type(tmp_member)
-            return f"""{{
+            c_type = _map_type(member.type)
+            if member.type.name in structs_types:
+                # For struct arrays, access as struct pointers
+                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+            else:
+                tmp_member.name = f"(({c_type}*)self->{member.name}.data)[i]"
+            inner_read = _read_type(tmp_member, is_array_element=True)
+            return f"""({{
       uint8_t arr_size;
       if ((rcode = bakelite_read_uint8(buf, &arr_size)) != 0) return rcode;
       self->{member.name}.size = arr_size;
-      self->{member.name}.data = bakelite_buffer_alloc(buf, arr_size * sizeof({_map_type(member.type)}));
+      self->{member.name}.data = bakelite_buffer_alloc(buf, arr_size * sizeof({c_type}));
       if (self->{member.name}.data == NULL) return BAKELITE_ERR_ALLOC;
       for (uint8_t i = 0; i < arr_size; i++) {{
         if ((rcode = {inner_read}) != 0) return rcode;
-      }}
-    }}
-    rcode = 0"""
+      }} 0; }})"""
 
-        # Use self-> prefix if not already present (for nested arrays, name includes self->)
-        name = member.name if member.name.startswith("self->") else f"self->{member.name}"
+        # Use self-> prefix if not already present (for nested arrays, name includes self-> or cast)
+        name = member.name
+        needs_prefix = not (name.startswith("self->") or name.startswith("("))
+        if needs_prefix:
+            name = f"self->{name}"
 
         if member.type.name in enums_types:
             underlying = SERIALIZER_SUFFIX_MAP[enums_types[member.type.name].type.name]
             underlying_type = _map_type(enums_types[member.type.name].type)
-            return f"bakelite_read_{underlying}(buf, ({underlying_type}*)&{name})"
+            enum_type = member.type.name
+            # Use a temporary variable to avoid writing only the first byte of the enum
+            return f"""({{ {underlying_type} tmp; if ((rcode = bakelite_read_{underlying}(buf, &tmp)) != 0) return rcode; {name} = ({enum_type})tmp; 0; }})"""
         if member.type.name in structs_types:
             return f"{member.type.name}_unpack(&{name}, buf)"
         if member.type.name in SERIALIZER_SUFFIX_MAP:
@@ -270,12 +283,15 @@ def render(
 
 def runtime() -> str:
     """Generate the C runtime support code."""
+    runtimes_dir = os.path.join(os.path.dirname(__file__), "runtimes")
 
     def include(filename: str) -> str:
-        with open(
-            os.path.join(os.path.dirname(__file__), "runtimes", "ctiny", filename),
-            encoding="utf-8",
-        ) as f:
+        # Support both ctiny/ and common/ subdirectories
+        if filename.startswith("common/"):
+            filepath = os.path.join(runtimes_dir, filename)
+        else:
+            filepath = os.path.join(runtimes_dir, "ctiny", filename)
+        with open(filepath, encoding="utf-8") as f:
             return f.read()
 
     runtime_template = env.get_template("ctiny-bakelite.h.j2")
