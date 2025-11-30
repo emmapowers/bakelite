@@ -1,6 +1,6 @@
 /*
  * Bakelite C Runtime
- * Copyright (c) Emma Powers 2021-2024
+ * Copyright (c) Emma Powers 2021-2025
  *
  * C99 compatible header-only implementation for embedded systems.
  * Licensed under the MIT License (see end of file).

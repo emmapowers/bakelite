@@ -1,6 +1,6 @@
 /*
  * Bakelite CRC Functions (C99)
- * Copyright (c) Emma Powers 2021-2024
+ * Copyright (c) Emma Powers 2021-2025
  *
  * Platform-independent CRC-8, CRC-16, and CRC-32 implementations
  * with flash storage support for embedded platforms.
