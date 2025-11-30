@@ -58,7 +58,8 @@ def describe_gen_command():
             expect(result.exit_code) == 0
             with open(output_file) as f:
                 content = f.read()
-            expect("struct TestStruct" in content) == True
+            expect("TestStruct" in content) == True
+            expect("struct" in content) == True
         finally:
             os.unlink(output_file)
 

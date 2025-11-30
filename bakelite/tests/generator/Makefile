@@ -6,7 +6,7 @@ ifeq ($(UNAME_S),Linux)
 	FLAGS = -static-libasan
 endif
 ifeq ($(UNAME_S),Darwin)
-	FLAGS = -static-libsan
+	FLAGS =
 endif
 
 ifdef CI
@@ -23,12 +23,12 @@ cpptiny: cpptiny-serialization.cpp cpptiny-framing.cpp cpptiny-protocol.cpp bake
 
 .PHONY: struct.h
 struct.h: struct.bakelite
-	poetry run bakelite gen -l cpptiny -i struct.bakelite -o struct.h
+	pixi run -- bakelite gen -l cpptiny -i struct.bakelite -o struct.h
 
 .PHONY: proto.h
 proto.h: proto.bakelite
-	poetry run bakelite gen -l cpptiny -i proto.bakelite -o proto.h
+	pixi run -- bakelite gen -l cpptiny -i proto.bakelite -o proto.h
 
 .PHONY: bakelite.h
 bakelite.h: ${INCLUDEPATH}/serializer.h ${INCLUDEPATH}/cobs.h ${INCLUDEPATH}/crc.h ${INCLUDEPATH}/declarations.h
-	poetry run bakelite runtime -l cpptiny -o bakelite.h
+	pixi run -- bakelite runtime -l cpptiny -o bakelite.h
