@@ -80,8 +80,19 @@ def render(
     structs: list[ProtoStruct],
     proto: Protocol | None,
     comments: list[str],
+    *,
+    unpacked: bool = False,
 ) -> str:
-    """Render a protocol definition to C++ source code."""
+    """Render a protocol definition to C++ source code.
+
+    Args:
+        enums: Enum definitions from the protocol
+        structs: Struct definitions from the protocol
+        proto: Protocol definition (framing, CRC, message IDs)
+        comments: Top-level comments from the protocol file
+        unpacked: If True, generate aligned structs with memmove shuffle.
+                  If False (default), generate packed structs for zero-copy.
+    """
     enums_types = {enum.name: enum for enum in enums}
     structs_types = {struct.name: struct for struct in structs}
 
@@ -189,6 +200,7 @@ def render(
         read_type=_read_type,
         framer=framer,
         message_ids=message_ids,
+        unpacked=unpacked,
     )
 
 
