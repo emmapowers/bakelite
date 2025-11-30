@@ -19,6 +19,7 @@ nav:
   # - Tutorial: tutorial.md
   - Protocol Spec: protocol.md
   - Languages:
+    - C (Tiny): ctiny.md
     - C++ (Tiny): cpptiny.md
     - Python: python.md
   - About:
