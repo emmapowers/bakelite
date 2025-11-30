@@ -9,9 +9,21 @@
 #ifndef BAKELITE_H
 #define BAKELITE_H
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+
 #ifdef __AVR__
 #include <avr/pgmspace.h>
 #endif
+
+/*
+ * Common C99 implementations (CRC and COBS)
+ */
+{{include('common/crc.h')}}
+
+{{include('common/cobs.h')}}
 
 /*
  * Type Definitions
