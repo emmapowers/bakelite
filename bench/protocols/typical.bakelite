@@ -1,0 +1,37 @@
+# Typical protocol - realistic reference for documentation
+# Shows representative resource usage, not for detailed benchmarking
+
+enum Status: uint8 {
+  Ok = 0
+  Error = 1
+  Busy = 2
+}
+
+struct SensorData {
+  timestamp: uint32
+  temperature: int16
+  humidity: uint16
+  pressure: uint32
+}
+
+struct Command {
+  opcode: uint8
+  param: uint32
+}
+
+struct Response {
+  status: Status
+  data: bytes[16]
+}
+
+protocol {
+  maxLength = 64
+  framing = COBS
+  crc = CRC8
+
+  messageIds {
+    SensorData = 1
+    Command = 2
+    Response = 3
+  }
+}

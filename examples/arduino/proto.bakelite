@@ -11,7 +11,6 @@ struct Ack {
 }
 
 protocol {
-  maxLength = 70
   framing = COBS
   crc = CRC8
 

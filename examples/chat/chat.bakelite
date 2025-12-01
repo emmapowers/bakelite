@@ -1,0 +1,18 @@
+struct ChatMessage {
+  sender: string[32]
+  text: string[256]
+}
+
+struct SetName {
+  name: string[32]
+}
+
+protocol {
+  framing = COBS
+  crc = None
+
+  messageIds {
+    ChatMessage = 1
+    SetName = 2
+  }
+}

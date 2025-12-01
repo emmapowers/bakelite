@@ -1,70 +1,128 @@
+"""Generated protocol definitions."""
+% if runtime_import == "bakelite_runtime"
+{{ BLANK_LINE }}
+import struct as _struct
+import sys
 from dataclasses import dataclass
+% if enums
 from enum import Enum
-from bakelite.proto.serialization import struct, enum
-from bakelite.proto.runtime import Registry, ProtocolBase
-from typing import Any, List
-
-{{""}}
-{{""}}
-
+% endif
+from pathlib import Path
+from typing import ClassVar, Self
+{{ BLANK_LINE }}
+_runtime_path = str(Path(__file__).parent)
+_added_to_path = _runtime_path not in sys.path
+if _added_to_path:
+    sys.path.insert(0, _runtime_path)
+try:
+    from bakelite_runtime.serialization import BakeliteEnum, SerializationError, Struct, bakelite_field
+% if proto
+    from bakelite_runtime.runtime import ProtocolBase
+% endif
+finally:
+    if _added_to_path:
+        sys.path.remove(_runtime_path)
+% else
+{{ BLANK_LINE }}
+import struct as _struct
+from dataclasses import dataclass
+% if enums
+from enum import Enum
+% endif
+from typing import ClassVar, Self
+{{ BLANK_LINE }}
+from {{ runtime_import }}.serialization import BakeliteEnum, SerializationError, Struct, bakelite_field
+% if proto
+from {{ runtime_import }}.runtime import ProtocolBase
+% endif
+% endif
 % for comment in comments:
 #{{ comment }}
 % endfor
-
-{{""}}
-
-registry = Registry()
-
-{{""}}
-{{""}}
-
-% for enum in enums
-% if enum.comment
-# {{ enum.comment }}
+% for e in enums
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
+% if e.comment
+# {{ e.comment }}
 % endif
-@enum(registry, r'''{{to_desc(enum)}}''')
-class {{ enum.name }}(Enum):
-  % for value in enum.values:
-  % if value.comment
-  #{{ value.comment }}
-  % endif
-  {{ value.name }} = {{ value.value }}
-  % endfor
-  {{""}}
-  {{""}}
+class {{ e.name }}(BakeliteEnum):
+    bakelite_type: ClassVar[str] = "{{ e.type.name }}"
+    % for value in e.values:
+    % if value.comment
+    #{{ value.comment }}
+    % endif
+    {{ value.name }} = {{ value.value }}
+    % endfor
+{{ BLANK_LINE }}
+    def pack(self) -> bytes:
+        return _struct.pack("={{ format_char(e.type) }}", self.value)
+{{ BLANK_LINE }}
+    @classmethod
+    def unpack(cls, data: bytes | memoryview, offset: int = 0) -> tuple[Self, int]:
+        return cls(_struct.unpack_from("={{ format_char(e.type) }}", data, offset)[0]), {{ type_size(e.type) }}
 % endfor
-
-% for struct in structs
-% if struct.comment
-# {{ struct.comment }}
+% for s in structs
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
+% if s.comment
+# {{ s.comment }}
 % endif
-@struct(registry, r'''{{to_desc(struct)}}''')
 @dataclass
-class {{ struct.name }}:
-  % for member in struct.members:
-  % if member.comment
-  #{{ member.comment }}
-  % endif
-  {{ member.name }}: {{map_type(member)}}{{ ' = ' + member.value if member.value }}
-  % endfor
-  {{""}}
-  {{""}}
+class {{ s.name }}(Struct):
+    % for member in s.members:
+    % if member.comment
+    #{{ member.comment }}
+    % endif
+    % if is_primitive(member.type)
+    {{ member.name }}: {{ map_type(member) }} = bakelite_field(type="{{ member.type.name }}"{{ field_args(member) }})
+    % else
+    {{ member.name }}: {{ map_type(member) }}
+    % endif
+    % endfor
+{{ BLANK_LINE }}
+    def pack(self) -> bytes:
+        _buf = bytearray()
+        % for batch_type, batch_members in batch_members(s.members):
+        % if batch_type == "primitive"
+        {{ gen_pack_batch(batch_members) | indent(8) }}
+        % else
+        {{ gen_pack_field(batch_members[0]) | indent(8) }}
+        % endif
+        % endfor
+        return bytes(_buf)
+{{ BLANK_LINE }}
+    @classmethod
+    def unpack(cls, _data: bytes | memoryview, offset: int = 0) -> tuple[Self, int]:
+        _o = offset
+        % for batch_type, batch_members in batch_members(s.members):
+        % if batch_type == "primitive"
+        {{ gen_unpack_batch(batch_members) | indent(8) }}
+        % else
+        {{ gen_unpack_field(batch_members[0]) | indent(8) }}
+        % endif
+        % endfor
+        return cls({{ s.members | map(attribute='name') | join(', ') }}), _o - offset
 % endfor
-
-{{""}}
-{{""}}
-
-%if proto
-
+% if proto
+{{ BLANK_LINE }}
+{{ BLANK_LINE }}
 class Protocol(ProtocolBase):
-  def __init__(self, **kwargs: Any) -> None:
-    super().__init__(
-      % for option in proto.options:
-      {{option.name}}="{{option.value}}",
-      % endfor
-      registry=registry,
-      desc=r'''{{to_desc(proto)}}''',
-      **kwargs
-    )
-
-%endif
+    _message_types: ClassVar[dict[int, type[Struct]]] = {
+        % for msg in proto.message_ids:
+        {{ msg.number }}: {{ msg.name }},
+        % endfor
+    }
+    _message_ids: ClassVar[dict[str, int]] = {
+        % for msg in proto.message_ids:
+        "{{ msg.name }}": {{ msg.number }},
+        % endfor
+    }
+{{ BLANK_LINE }}
+    def __init__(self, **kwargs) -> None:
+        % for option in proto.options:
+        % if option.name == "crc"
+        kwargs.setdefault("crc", "{{ option.value }}")
+        % endif
+        % endfor
+        super().__init__(**kwargs)
+% endif

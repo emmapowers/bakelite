@@ -1,0 +1,24 @@
+# Serialization benchmark - no framing
+# Tests struct pack/unpack strategies
+
+struct Primitives {
+  u8: uint8
+  u16: uint16
+  u32: uint32
+  i8: int8
+  i16: int16
+  i32: int32
+  f32: float32
+  flag: bool
+}
+
+struct Arrays {
+  bytes: bytes[16]
+  nums: uint16[8]
+  str: string[32]
+}
+
+struct Nested {
+  header: Primitives
+  data: Arrays
+}

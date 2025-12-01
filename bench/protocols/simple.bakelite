@@ -1,0 +1,9 @@
+# Minimal benchmark protocol - primitives only
+struct Simple {
+  a: uint8
+  b: uint16
+  c: uint32
+  d: int8
+  e: int16
+  f: int32
+}

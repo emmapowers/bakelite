@@ -1,0 +1,17 @@
+# Framing benchmark - minimal payload, tests COBS/CRC
+# Change crc option to compare: None, CRC8, CRC16, CRC32
+
+struct Payload {
+  id: uint8
+  data: bytes[32]
+}
+
+protocol {
+  maxLength = 64
+  framing = COBS
+  crc = CRC8
+
+  messageIds {
+    Payload = 1
+  }
+}

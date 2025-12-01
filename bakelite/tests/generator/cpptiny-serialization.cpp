@@ -31,7 +31,7 @@ void printHex(const char *data, int length) {
 TEST_CASE("simple struct") {
   char *data = new char[256];
   char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
   Ack t1 = {
     123
@@ -51,7 +51,7 @@ TEST_CASE("simple struct") {
 TEST_CASE("complex struct") {
   char *data = new char[256];
   char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
   TestStruct t1 = {
     5,
@@ -68,7 +68,7 @@ TEST_CASE("complex struct") {
   REQUIRE(t1.pack(stream) == 0);
 
   CHECK(stream.pos() == 24);
-  CHECK(hexString(data, stream.pos()) == "052efbffff1fd204a4709dbf010100010203046865790000");
+  CHECK(hexString(data, stream.pos()) == "052efbffff1fd204a4709dbf010100040102030468657900");
 
   TestStruct t2;
   stream.seek(0);
@@ -88,7 +88,7 @@ TEST_CASE("complex struct") {
 TEST_CASE("enum struct") {
   char *data = new char[256];
   char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
   EnumStruct t1 = {
     Direction::Left,
@@ -110,7 +110,7 @@ TEST_CASE("enum struct") {
 TEST_CASE("nested struct") {
   char *data = new char[256];
   char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
   NestedStruct t1 = {
     {true, false},
@@ -135,7 +135,7 @@ TEST_CASE("nested struct") {
 TEST_CASE("deeply nested struct") {
   char *data = new char[256];
   char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
   DeeplyNestedStruct t1 = {
     { { false, true } }
@@ -153,58 +153,61 @@ TEST_CASE("deeply nested struct") {
   CHECK(t2.c.a.b2 == true);
 }
 
-TEST_CASE("struct with fixed arrays") {
+TEST_CASE("struct with arrays") {
   char *data = new char[256];
-  char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
+  BufferStream stream(data, 256);
 
-  ArrayStruct t1 = {
-    { Direction::Left, Direction::Right, Direction::Down },
-    { { 127 }, { 64 } },
-    { "abc", "def", "ghi" }
-  };
+  ArrayStruct t1;
+  t1.a.push_back(Direction::Left);
+  t1.a.push_back(Direction::Right);
+  t1.a.push_back(Direction::Down);
+  t1.b.push_back({127});
+  t1.b.push_back({64});
+  strcpy(t1.c.data[0], "abc");
+  strcpy(t1.c.data[1], "def");
+  strcpy(t1.c.data[2], "ghi");
+  t1.c.len = 3;
   REQUIRE(t1.pack(stream) == 0);
 
-  CHECK(stream.pos() == 17);
-  CHECK(hexString(data, stream.pos()) == "0203017f40616263006465660067686900");
+  // All arrays now have length prefixes
+  CHECK(stream.pos() == 20);
+  CHECK(hexString(data, stream.pos()) == "03020301027f4003616263006465660067686900");
 
   ArrayStruct t2;
   stream.seek(0);
   REQUIRE(t2.unpack(stream) == 0);
-  
+
   CHECK(t2.a[0] == Direction::Left);
   CHECK(t2.a[1] == Direction::Right);
   CHECK(t2.a[2] == Direction::Down);
   CHECK(t2.b[0].code == 127);
   CHECK(t2.b[1].code == 64);
-  CHECK(string(t2.c[0]) == "abc");
-  CHECK(string(t2.c[1]) == "def");
-  CHECK(string(t2.c[2]) == "ghi");
+  CHECK(string(t2.c.data[0]) == "abc");
+  CHECK(string(t2.c.data[1]) == "def");
+  CHECK(string(t2.c.data[2]) == "ghi");
 }
 
 TEST_CASE("struct with variable types") {
   char *data = new char[256];
-  char *heap = new char[256];
-  BufferStream stream(data, 256, heap, 256);
-  char byteData[11] = { 0x68, 0x65, 0x6C, 0x6C, 0x6F,
+  BufferStream stream(data, 256);
+  uint8_t byteData[11] = { 0x68, 0x65, 0x6C, 0x6C, 0x6F,
         0,
         0x57, 0x6F, 0x72, 0x6C, 0x64 };
   uint8_t numbers[4] = { 1, 2, 3, 4 };
-  char nestedBytesA[3] = { 4, 5, 6 };
-  char nestedBytesB[3] = { 7, 8, 9 };
-  SizedArray<char> bytesList[2] = {
-    { nestedBytesA, 3 },
-    { nestedBytesB, 3 },
-  };
-  const char *stringList[3] = { "abc", "def", "ghi" };
 
-  VariableLength t1 = {
-    { byteData, 11 },
-    (char *)"This is a test string!",
-    { numbers, 4},
-    { bytesList, 2 },
-    { (char **)stringList, 3 }
-  };
+  VariableLength t1;
+  t1.a.assign(byteData, 11);
+  strcpy(t1.b, "This is a test string!");
+  t1.c.assign(numbers, 4);
+  // d: bytes[16][4] - array of bytes[16]
+  t1.d.data[0].assign((uint8_t*)"\x04\x05\x06", 3);
+  t1.d.data[1].assign((uint8_t*)"\x07\x08\x09", 3);
+  t1.d.len = 2;
+  // e: string[16][4] - array of string[16]
+  strcpy(t1.e.data[0], "abc");
+  strcpy(t1.e.data[1], "def");
+  strcpy(t1.e.data[2], "ghi");
+  t1.e.len = 3;
   REQUIRE(t1.pack(stream) == 0);
 
   CHECK(stream.pos() == 62);
@@ -214,21 +217,21 @@ TEST_CASE("struct with variable types") {
   stream.seek(0);
   REQUIRE(t2.unpack(stream) == 0);
 
-  CHECK(t2.a.size == 11);
-  CHECK(vector<uint8_t>(t2.a.data, t2.a.data+t2.a.size) == vector<uint8_t>(byteData, byteData+11));
+  CHECK(t2.a.size() == 11);
+  CHECK(vector<uint8_t>(t2.a.data, t2.a.data+t2.a.size()) == vector<uint8_t>(byteData, byteData+11));
   CHECK(string(t2.b) == "This is a test string!");
-  CHECK(t2.c.size == 4);
-  CHECK(vector<uint8_t>(t2.c.data, t2.c.data+t2.c.size) == vector<uint8_t>({1, 2, 3, 4}));
-  CHECK(t2.d.size == 2);
-  CHECK(t2.d.data[0].size == 3);
+  CHECK(t2.c.size() == 4);
+  CHECK(vector<uint8_t>(t2.c.data, t2.c.data+t2.c.size()) == vector<uint8_t>({1, 2, 3, 4}));
+  CHECK(t2.d.size() == 2);
+  CHECK(t2.d.data[0].size() == 3);
   CHECK(t2.d.data[0].data[0] == 4);
   CHECK(t2.d.data[0].data[1] == 5);
   CHECK(t2.d.data[0].data[2] == 6);
-  CHECK(t2.d.data[1].size == 3);
+  CHECK(t2.d.data[1].size() == 3);
   CHECK(t2.d.data[1].data[0] == 7);
   CHECK(t2.d.data[1].data[1] == 8);
   CHECK(t2.d.data[1].data[2] == 9);
-  CHECK(t2.e.size == 3);
+  CHECK(t2.e.size() == 3);
   CHECK(string(t2.e.data[0]) == "abc");
   CHECK(string(t2.e.data[1]) == "def");
   CHECK(string(t2.e.data[2]) == "ghi");
