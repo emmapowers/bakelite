@@ -143,20 +143,23 @@ def render(
         if member.array_size is not None:
             tmp_member = copy(member)
             tmp_member.array_size = None
-            tmp_member.name = "val"
-            return f"""readArray(stream, {member.name}, [](auto &stream, auto &val) {{
+            tmp_member.name = "*val"  # Dereference the pointer in callback
+            return f"""readArray(stream, {member.name}, [](auto &stream, auto *val) {{
       return {_read_type(tmp_member)}
     }});"""
 
         if member.type.name in enums_types:
             underlying_type = _map_type(enums_types[member.type.name].type)
-            return f"read(stream, ({underlying_type}&){member.name});"
+            return f"read(stream, ({underlying_type}*)&{member.name});"
 
         if member.type.name in structs_types:
+            # Handle pointer case (from array callback)
+            if member.name.startswith("*"):
+                return f"({member.name}).unpack(stream);"
             return f"{member.name}.unpack(stream);"
 
         if member.type.name in PRIMITIVE_TYPE_MAP:
-            return f"read(stream, {member.name});"
+            return f"read(stream, &{member.name});"
 
         if member.type.name == "bytes":
             return f"readBytes(stream, {member.name});"

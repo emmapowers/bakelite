@@ -63,3 +63,7 @@ examples/*/bakelite_runtime/
 # PlatformIO
 .pio/
 *.ino.cpp
+
+# Benchmark toolchains and results
+bench/toolchains/
+bench/results/

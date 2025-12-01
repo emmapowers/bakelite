@@ -184,17 +184,17 @@ int writeString(T& stream, const char *val) {
     return write(stream, (uint8_t)0);  // null terminator
 }
 
-// Read primitives
+// Read primitives (pointer to support packed struct members)
 template <class T, class V>
-int read(T& stream, V &val) {
-    return stream.read((char *)&val, sizeof(val));
+int read(T& stream, V *val) {
+    return stream.read((char *)val, sizeof(*val));
 }
 
 // Read fixed-size array
 template <class T, class V, class F>
 int readArray(T& stream, V val[], size_t size, F readCb) {
     for (size_t i = 0; i < size; i++) {
-        int rcode = readCb(stream, val[i]);
+        int rcode = readCb(stream, &val[i]);
         if (rcode != 0)
             return rcode;
     }
@@ -205,7 +205,7 @@ int readArray(T& stream, V val[], size_t size, F readCb) {
 template <class T, class V, size_t N, typename SizeT, class F>
 int readArray(T& stream, SizedArray<V, N, SizeT> &val, F readCb) {
     SizeT size = 0;
-    int rcode = read(stream, size);
+    int rcode = read(stream, &size);
     if (rcode != 0)
         return rcode;
 
@@ -215,7 +215,7 @@ int readArray(T& stream, SizedArray<V, N, SizeT> &val, F readCb) {
 
     val.len = size;
     for (size_t i = 0; i < size; i++) {
-        rcode = readCb(stream, val.data[i]);
+        rcode = readCb(stream, &val.data[i]);
         if (rcode != 0)
             return rcode;
     }
@@ -232,7 +232,7 @@ int readBytes(T& stream, char *val, size_t size) {
 template <class T, size_t N, typename SizeT>
 int readBytes(T& stream, SizedArray<uint8_t, N, SizeT> &val) {
     SizeT size = 0;
-    int rcode = read(stream, size);
+    int rcode = read(stream, &size);
     if (rcode != 0)
         return rcode;
 
