@@ -1,6 +1,8 @@
 """Runtime support for bakelite protocol communication."""
 
+import asyncio
 import struct
+import time
 from asyncio import StreamReader, StreamWriter
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from io import BufferedIOBase
@@ -156,7 +158,7 @@ class ProtocolBase:
 
         if self._stream is None:
             raise ProtocolError("Sync poll requires a BufferedIOBase stream")
-        data = self._stream.read()
+        data = self._stream.read(4096)
         if data:
             self._framer.append_buffer(data)
 
@@ -170,13 +172,9 @@ class ProtocolBase:
         if self._async_reader is None:
             raise ProtocolError("Async poll requires a StreamReader")
 
-        # Read available data (non-blocking read of up to 4096 bytes)
-        try:
-            data = await self._async_reader.read(4096)
-            if data:
-                self._framer.append_buffer(data)
-        except Exception:
-            pass
+        data = await self._async_reader.read(4096)
+        if data:
+            self._framer.append_buffer(data)
 
         frame = self._framer.decode_frame()
         if frame:
@@ -218,6 +216,8 @@ class ProtocolBase:
             msg = self.poll()
             if msg is not None:
                 yield msg
+            else:
+                time.sleep(0.001)
 
     async def _messages_async(self) -> AsyncIterator[Struct]:
         """Async iterator over messages."""
@@ -225,3 +225,5 @@ class ProtocolBase:
             msg = await self.poll(async_=True)
             if msg is not None:
                 yield msg
+            else:
+                await asyncio.sleep(0.001)

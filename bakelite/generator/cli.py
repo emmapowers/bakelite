@@ -48,15 +48,23 @@ def gen(language: str, input_file: str, output_file: str, runtime_import: str | 
 
 @cli.command()
 @click.option("--language", "-l", required=True, help="Target language (python, cpptiny)")
-@click.option("--output", "-o", "output_path", default=".", help="Output directory")
+@click.option(
+    "--output",
+    "-o",
+    "output_path",
+    default=None,
+    help="Output path (file for cpptiny, directory for python)",
+)
 @click.option("--name", default="bakelite_runtime", help="Runtime folder name (python only)")
-def runtime(language: str, output_path: str, name: str) -> None:
+def runtime(language: str, output_path: str | None, name: str) -> None:
     """Generate runtime support code."""
     if language == "cpptiny":
+        output_path = output_path or "bakelite.h"
         generated_file = cpptiny.runtime()
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(generated_file)
     elif language == "python":
+        output_path = output_path or "."
         runtime_dir = Path(output_path) / name
         runtime_dir.mkdir(parents=True, exist_ok=True)
         for filename, content in python.runtime().items():

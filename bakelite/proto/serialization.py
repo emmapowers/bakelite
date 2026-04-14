@@ -44,6 +44,8 @@ def bakelite_field(
     """
     metadata = {"bakelite": BakeliteFieldInfo(type, max_length, array_size)}
 
+    if default is not _MISSING and default_factory is not _MISSING:
+        raise ValueError("cannot specify both default and default_factory")
     if default is not _MISSING:
         return field(default=default, metadata=metadata)
     if default_factory is not _MISSING:
