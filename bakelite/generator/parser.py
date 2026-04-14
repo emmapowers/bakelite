@@ -118,7 +118,7 @@ class TreeTransformer(Transformer):
     def prim_variable(self, args: List[Any]) -> ProtoType:
         if len(args) > 1 and args[1] is not None:
             return ProtoType(name=str(args[0]), size=int(args[1]))
-        return ProtoType(name=str(args[0]), size=0)
+        return ProtoType(name=str(args[0]), size=None)
 
     def proto(self, args: List[Any]) -> Protocol:
         ids = _find_one(args, _ProtoMessageIds)
@@ -188,7 +188,7 @@ def validate(
     # Validate Message IDs
     for msg_id in protocol.message_ids:
         if msg_id.number == 0:
-            raise ValidationError("Message ID 0 is reverved for future use")
+            raise ValidationError("Message ID 0 is reserved for future use")
         if msg_id.name not in struct_map:
             raise ValidationError(f"{msg_id.name} assigned a message ID, but not declared")
 

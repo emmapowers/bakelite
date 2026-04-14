@@ -65,7 +65,7 @@ class ProtocolBase:
         elif crc == "crc32":
             crc_size = CrcSize.CRC32
         else:
-            raise RuntimeError(f"Unkown CRC type {crc}")
+            raise RuntimeError(f"Unknown CRC type {crc}")
 
         if not framer:
             self._framer = Framer(crc=crc_size)
@@ -73,7 +73,7 @@ class ProtocolBase:
             self._framer = framer
 
     def send(self, message: Any) -> None:
-        if not message._desc:
+        if not getattr(message, "_desc", None):
             raise ProtocolError(f"{type(message)} is not a message type")
 
         msg_name = message._desc.name
@@ -101,6 +101,6 @@ class ProtocolBase:
             if msg_id in self._ids:
                 message_type = self._registry.get(self._ids[msg_id])
                 return message_type.unpack(BytesIO(msg))
-            raise ProtocolError(f"Received unkown message id {msg_id}")
+            raise ProtocolError(f"Received unknown message id {msg_id}")
 
         return None

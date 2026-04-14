@@ -70,7 +70,7 @@ def describe_validation():
         with pytest.raises(ValidationError) as exinfo:
             gen = gen_code(code)
 
-        expect(str(exinfo.value)).includes("Message ID 0 is reverved for future use")
+        expect(str(exinfo.value)).includes("Message ID 0 is reserved for future use")
 
     def test_missing_message_id_struct(expect):
         code = """

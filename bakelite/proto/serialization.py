@@ -57,7 +57,7 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
         format_str += "f"
     elif t.name == "float64":
         format_str += "d"
-    elif t.name == "bytes" and t.size == 0:
+    elif t.name == "bytes" and not t.size:
         if not isinstance(value, bytes):
             raise RuntimeError(f"expected bytes object for field {t.name}")
         if len(value) > 255:
@@ -73,7 +73,7 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
         value = value + b"\0" * (t.size - len(value))
         stream.write(value)
         return
-    elif t.name == "string" and t.size == 0:
+    elif t.name == "string" and not t.size:
         if value[:-1].find(b"\x00") > 0:
             raise SerializationError("Found a null byte before the end of the string")
         if value[-1] != 0:
@@ -143,14 +143,14 @@ def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> Any:
         format_str += "f"
     elif t.name == "float64":
         format_str += "d"
-    elif t.name == "bytes" and t.size == 0:
+    elif t.name == "bytes" and not t.size:
         size = pystruct.unpack("=B", stream.read(1))[0]
         data = stream.read(size)
         return data
     elif t.name == "bytes":
         data = stream.read(t.size)
         return data
-    elif t.name == "string" and t.size == 0:
+    elif t.name == "string" and not t.size:
         data = b""
         while True:
             byte = stream.read(1)
