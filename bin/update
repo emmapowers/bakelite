@@ -12,7 +12,7 @@ CWD = os.getcwd()
 TMP = tempfile.gettempdir()
 CONFIG = {
     "full_name": "Emma Powers",
-    "email": "emmapowers@gmail.com",
+    "email": "emma@emmaponders.com",
     "github_username": "emmapowers",
     "github_repo": "bakelite",
     "default_branch": "master",

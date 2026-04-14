@@ -9,7 +9,7 @@ description = "A utility that makes it simple to communicate with your firmware.
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
-authors = [{ name = "Emma Powers", email = "emmapowers@gmail.com" }]
+authors = [{ name = "Emma Powers", email = "emma@emmaponders.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Natural Language :: English",
