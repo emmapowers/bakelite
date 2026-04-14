@@ -23,7 +23,7 @@ def cli() -> None:
     is_flag=False,
     flag_value="bakelite.proto",
     default=None,
-    help="Import path for runtime. No value=bakelite.proto, omit=runtime",
+    help="Import path for runtime (no value=bakelite.proto, omit=bakelite_runtime)",
 )
 def gen(language: str, input_file: str, output_file: str, runtime_import: str | None) -> None:
     """Generate protocol code from a definition file."""
