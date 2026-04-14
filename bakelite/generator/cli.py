@@ -68,7 +68,7 @@ def runtime(language: str, output_path: str | None, name: str) -> None:
         runtime_dir = Path(output_path) / name
         runtime_dir.mkdir(parents=True, exist_ok=True)
         for filename, content in python.runtime().items():
-            (runtime_dir / filename).write_text(content)
+            (runtime_dir / filename).write_text(content, encoding="utf-8")
         print(f"Generated Python runtime in {runtime_dir}")
     else:
         print(f"Unknown language: {language}")
