@@ -103,11 +103,11 @@ def describe_parse_struct():
         expect(structs[0].members[0].type.name) == "bytes"
         expect(structs[0].members[0].type.size) == 10
         expect(structs[0].members[1].type.name) == "bytes"
-        expect(structs[0].members[1].type.size) == 0
+        expect(structs[0].members[1].type.size) == None
         expect(structs[0].members[2].type.name) == "string"
         expect(structs[0].members[2].type.size) == 20
         expect(structs[0].members[3].type.name) == "string"
-        expect(structs[0].members[3].type.size) == 0
+        expect(structs[0].members[3].type.size) == None
 
     def parses_fixed_arrays(expect):
         _, structs, _, _ = parse(

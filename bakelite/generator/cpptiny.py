@@ -42,13 +42,13 @@ def _map_type(t: ProtoType) -> str:
 def _map_type_member(member: ProtoStructMember) -> str:
     type_name = _map_type(member.type)
 
-    if member.type.name == "bytes" and member.type.size == 0 and member.array_size == 0:
+    if member.type.name == "bytes" and not member.type.size and member.array_size == 0:
         return f"Bakelite::SizedArray<Bakelite::SizedArray<{type_name}> >"
-    if member.type.name == "bytes" and member.type.size == 0:
+    if member.type.name == "bytes" and not member.type.size:
         return f"Bakelite::SizedArray<{type_name}>"
-    if member.type.name == "string" and (member.type.size == 0) and member.array_size == 0:
+    if member.type.name == "string" and (not member.type.size) and member.array_size == 0:
         return f"Bakelite::SizedArray<{type_name}*>"
-    if member.type.name == "string" and (member.type.size == 0):
+    if member.type.name == "string" and (not member.type.size):
         return f"{type_name}*"
     if member.array_size == 0:
         return f"Bakelite::SizedArray<{type_name}>"
@@ -57,7 +57,7 @@ def _map_type_member(member: ProtoStructMember) -> str:
 
 def _size_postfix(member: ProtoStructMember) -> str:
     if member.type.name in {"bytes", "string"}:
-        if member.type.size == 0:
+        if not member.type.size:
             return ""
         return f"[{member.type.size}]"
     return ""
@@ -102,11 +102,11 @@ def render(
         if member.type.name in PRIMITIVE_TYPE_MAP and member.type.name not in {"bytes", "string"}:
             return f"write(stream, {member.name});"
         if member.type.name == "bytes":
-            if member.type.size != 0:
+            if member.type.size:
                 return f"writeBytes(stream, {member.name}, {member.type.size});"
             return f"writeBytes(stream, {member.name});"
         if member.type.name == "string":
-            if member.type.size != 0:
+            if member.type.size:
                 return f"writeString(stream, {member.name}, {member.type.size});"
             return f"writeString(stream, {member.name});"
         raise RuntimeError(f"Unknown type {member.type.name}")
@@ -128,11 +128,11 @@ def render(
         if member.type.name in PRIMITIVE_TYPE_MAP and member.type.name not in {"bytes", "string"}:
             return f"read(stream, {member.name});"
         if member.type.name == "bytes":
-            if member.type.size != 0:
+            if member.type.size:
                 return f"readBytes(stream, {member.name}, {member.type.size});"
             return f"readBytes(stream, {member.name});"
         if member.type.name == "string":
-            if member.type.size != 0:
+            if member.type.size:
                 return f"readString(stream, {member.name}, {member.type.size});"
             return f"readString(stream, {member.name});"
         raise RuntimeError(f"Unknown type {member.type.name}")

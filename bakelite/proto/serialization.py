@@ -1,5 +1,6 @@
 """Serialization and deserialization for bakelite protocol types."""
 
+import json as _json
 import struct as pystruct
 from dataclasses import is_dataclass
 from enum import Enum
@@ -103,7 +104,7 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
         format_str += "f"
     elif t.name == "float64":
         format_str += "d"
-    elif t.name == "bytes" and t.size == 0:
+    elif t.name == "bytes" and not t.size:
         if not isinstance(value, bytes):
             raise RuntimeError(f"expected bytes object for field {t.name}")
         if len(value) > 255:
@@ -119,7 +120,7 @@ def _pack_primitive_type(stream: BufferedIOBase, value: Any, t: ProtoType) -> No
         value = value + b"\0" * (t.size - len(value))
         stream.write(value)
         return
-    elif t.name == "string" and t.size == 0:
+    elif t.name == "string" and not t.size:
         if value[:-1].find(b"\x00") > 0:
             raise SerializationError("Found a null byte before the end of the string")
         if value[-1] != 0:
@@ -187,12 +188,12 @@ def _unpack_primitive_type(stream: BufferedIOBase, t: ProtoType) -> Any:
         format_str += "f"
     elif t.name == "float64":
         format_str += "d"
-    elif t.name == "bytes" and t.size == 0:
+    elif t.name == "bytes" and not t.size:
         size = pystruct.unpack("=B", stream.read(1))[0]
         return stream.read(size)
     elif t.name == "bytes":
         return stream.read(t.size)
-    elif t.name == "string" and t.size == 0:
+    elif t.name == "string" and not t.size:
         data = b""
         while True:
             byte = stream.read(1)
@@ -280,11 +281,34 @@ class Packable:
         raise NotImplementedError
 
 
+def _parse_struct_desc(desc_json: str) -> ProtoStruct:
+    """Parse a JSON string into a ProtoStruct descriptor."""
+    data = _json.loads(desc_json)
+    members = tuple(
+        ProtoStructMember(
+            type=ProtoType(name=m["type"]["name"], size=m["type"]["size"]),
+            name=m["name"],
+            array_size=m.get("array_size"),
+        )
+        for m in data["members"]
+    )
+    return ProtoStruct(name=data["name"], members=members)
+
+
+def _parse_enum_desc(desc_json: str) -> ProtoEnumDescriptor:
+    """Parse a JSON string into a ProtoEnumDescriptor."""
+    data = _json.loads(desc_json)
+    return ProtoEnumDescriptor(
+        name=data["name"],
+        type=ProtoType(name=data["type"]["name"], size=data["type"]["size"]),
+    )
+
+
 class struct:
     """Decorator that adds pack/unpack methods to a dataclass."""
 
-    def __init__(self, registry: Registry, desc: ProtoStruct) -> None:
-        self.desc = desc
+    def __init__(self, registry: Registry, desc: ProtoStruct | str) -> None:
+        self.desc = _parse_struct_desc(desc) if isinstance(desc, str) else desc
         self.registry = registry
 
     def __call__(self, cls: type[T]) -> type[T]:
@@ -308,8 +332,8 @@ TEnum = TypeVar("TEnum", bound=Enum)
 class enum:
     """Decorator that registers an enum type with the protocol registry."""
 
-    def __init__(self, registry: Registry, desc: ProtoEnumDescriptor) -> None:
-        self.desc = desc
+    def __init__(self, registry: Registry, desc: ProtoEnumDescriptor | str) -> None:
+        self.desc = _parse_enum_desc(desc) if isinstance(desc, str) else desc
         self.registry = registry
 
     def __call__(self, cls: type[TEnum]) -> type[TEnum]:
