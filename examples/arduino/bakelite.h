@@ -13,6 +13,10 @@
 #include <assert.h>
 #include <string.h>
 
+#ifdef __AVR__
+#include <avr/pgmspace.h>
+#endif
+
 namespace Bakelite {
   /*
   *
