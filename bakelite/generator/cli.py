@@ -17,21 +17,18 @@ def cli() -> None:
 @click.option("--input", "-i", required=True)
 @click.option("--output", "-o", required=True)
 def gen(language: str, input: str, output: str) -> None:
-    render_func = None
-
-    if language == "python":
-        render_func = python.render
-    elif language == "cpptiny":
-        render_func = cpptiny.render
-    else:
-        print(f"Unkown language: {language}")
-        sys.exit(1)
-
     with open(input, "r", encoding="utf-8") as f:
         proto = f.read()
 
     proto_def = parse(proto)
-    generated_file = render_func(*proto_def)
+
+    if language == "python":
+        generated_file = python.render(*proto_def)
+    elif language == "cpptiny":
+        generated_file = cpptiny.render(*proto_def)
+    else:
+        print(f"Unknown language: {language}")
+        sys.exit(1)
 
     with open(output, "w", encoding="utf-8") as f:
         f.write(generated_file)

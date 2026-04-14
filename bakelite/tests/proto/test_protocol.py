@@ -2,7 +2,6 @@
 
 # pylint: disable=redefined-outer-name,unused-variable,expression-not-assigned,singleton-comparison
 
-import json
 import os
 from io import BytesIO
 
@@ -19,7 +18,7 @@ def gen_code(file_name):
         text = f.read()
 
     parsedFile = parse(text)
-    generated_code = render(*parsedFile)
+    generated_code = render(*parsedFile, runtime_import="bakelite.proto")
     exec(generated_code, gbl)
     return gbl
 

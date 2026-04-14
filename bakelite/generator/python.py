@@ -1,4 +1,4 @@
-from typing import Union
+from __future__ import annotations
 
 from jinja2 import Environment, PackageLoader
 
@@ -39,20 +39,21 @@ def _map_type(member: ProtoStructMember) -> str:
     else:
         type_name = member.type.name
 
-    if member.arraySize is not None:
+    if member.array_size is not None:
         return f"List[{type_name}]"
     return type_name
 
 
-def _to_desc(dclass: Union[ProtoEnum, ProtoStruct]) -> str:
+def _to_desc(dclass: ProtoEnum | ProtoStruct) -> str:
     return dclass.to_json()
 
 
 def render(
-    enums: List[ProtoEnum],
-    structs: List[ProtoStruct],
-    proto: Optional[Protocol],
-    comments: List[str],
+    enums: list[ProtoEnum],
+    structs: list[ProtoStruct],
+    proto: Protocol | None,
+    comments: list[str],
+    runtime_import: str = "bakelite_runtime",
 ) -> str:
 
     return template.render(
@@ -63,4 +64,5 @@ def render(
         map_type=_map_type,
         to_desc=_to_desc,
         to_camel_case=to_camel_case,
+        runtime_import=runtime_import,
     )
