@@ -1,18 +1,18 @@
 /*
- * The code in this file is Copyright (c) Emma Powers 2021,
- * unless otherwise marked. This software is made available
- * under the terms of the MIT License, which can be found at the
- * bottom of this file.
-*/
+ * Bakelite C Runtime
+ * Copyright (c) Emma Powers 2021-2024
+ *
+ * C99 compatible header-only implementation for embedded systems.
+ * Licensed under the MIT License (see end of file).
+ */
 
-#ifndef __BAKELITE_H__
-#define __BAKELITE_H__
+#ifndef BAKELITE_H
+#define BAKELITE_H
 
 #include <stddef.h>
 #include <stdint.h>
-#include <assert.h>
-#include <string.h>
 #include <stdbool.h>
+#include <string.h>
 
 #ifdef __AVR__
 #include <avr/pgmspace.h>
@@ -21,47 +21,34 @@
 /*
  * Common C99 implementations (CRC and COBS)
  */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 {{include('common/crc.h')}}
 
 {{include('common/cobs.h')}}
 
-#ifdef __cplusplus
-}
-#endif
+/*
+ * Type Definitions
+ */
+{{include('types.h')}}
 
-namespace Bakelite {
-  /*
-  *
-  *  Pre-Declarations
-  *
-  */
-  {{include('declarations.h')}}
+/*
+ * Buffer Stream
+ */
+{{include('stream.h')}}
 
-  /*
-  *
-  *  Serializer
-  *
-  */
-  {{include('serializer.h')}}
+/*
+ * Serialization Functions
+ */
+{{include('serializer.h')}}
 
-  /*
-  *
-  *  CRC
-  *
-  */
-  {{include('crc.h')}}
+/*
+ * CRC Functions
+ */
+{{include('crc.h')}}
 
-  /*
-  *
-  *  COBS Framer
-  *
-  */
-  {{include('cobs.h')}}
-}
+/*
+ * COBS Framing
+ */
+{{include('cobs.h')}}
 
 /*
 The MIT License
@@ -86,4 +73,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#endif // __BAKELITE_H__
+#endif /* BAKELITE_H */
