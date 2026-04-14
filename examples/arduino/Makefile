@@ -1,4 +1,3 @@
-
 gen: proto.h proto.py
 
 proto.h: proto.bakelite bakelite.h
@@ -9,3 +8,12 @@ proto.py: proto.bakelite
 
 bakelite.h:
 	bakelite runtime -l cpptiny -o bakelite.h
+
+bakelite_runtime:
+	bakelite runtime -l python
+
+build: gen
+	pio run
+
+clean:
+	rm -rf proto.h proto.py bakelite.h bakelite_runtime .pio *.ino.cpp
